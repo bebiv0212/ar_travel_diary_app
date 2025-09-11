@@ -1,5 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/intellij,windows,flutter,dart,android
-# Edit at https://www.toptal.com/developers/gitignore?templates=intellij,windows,flutter,dart,android
+# Created by https://www.toptal.com/developers/gitignore/api/windows,intellij,visualstudiocode,flutter,dart,android
+# Edit at https://www.toptal.com/developers/gitignore?templates=windows,intellij,visualstudiocode,flutter,dart,android
 
 ### Android ###
 # Gradle files
@@ -246,6 +246,25 @@ fabric.properties
 # https://plugins.jetbrains.com/plugin/8053-azure-toolkit-for-intellij
 .idea/**/azureSettings.xml
 
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Local History for Visual Studio Code
+.history/
+
+# Built Visual Studio Code Extensions
+*.vsix
+
+### VisualStudioCode Patch ###
+# Ignore all local history of files
+.history
+.ionide
+
 ### Windows ###
 # Windows thumbnail cache files
 Thumbs.db
@@ -272,4 +291,4 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# End of https://www.toptal.com/developers/gitignore/api/intellij,windows,flutter,dart,android
+# End of https://www.toptal.com/developers/gitignore/api/windows,intellij,visualstudiocode,flutter,dart,android

@@ -1,112 +1,96 @@
 import 'package:flutter/material.dart';
+import 'package:joljak/theme/app_colors.dart';
 import 'package:kakao_map_plugin/kakao_map_plugin.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:joljak/utils/location_access.dart';
 
-import '../theme/app_colors.dart';
-
+/// 현재 위치로 지도 중심 이동 + 마커 찍기 버튼
+/// - 버튼을 눌렀을 때만 권한/설정 유도
 class CurrentLocationBtn extends StatelessWidget {
   final KakaoMapController? mapController;
   final String markerId;
+  final int zoomLevel;
+  final LatLng? fallbackCenter; // null이면 _defaultFallback 사용
+
+  static final LatLng _defaultFallback = LatLng(37.5665, 126.9780); // 서울시청
 
   const CurrentLocationBtn({
     super.key,
     required this.mapController,
     this.markerId = 'current_location_marker',
+    this.zoomLevel = 3,
+    this.fallbackCenter,
   });
-
-  void _snack(BuildContext ctx, String msg) {
-    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  Future<bool> _ensureControllerReady() async {
-    // 컨트롤러가 null이 아니고, 간단한 호출이 성공하면 "준비됨"으로 간주
-    final c = mapController;
-    if (c == null) return false;
-    try {
-      // getLevel 같은 가벼운 호출로 준비상태 확인
-      final _ = await c.getLevel();
-      return true;
-    } catch (_) {
-      // onMapCreated 직후 바로는 준비가 덜 된 경우가 있어 약간 대기 후 재시도
-      await Future.delayed(const Duration(milliseconds: 200));
-      try {
-        final _ = await c.getLevel();
-        return true;
-      } catch (_) {
-        return false;
-      }
-    }
-  }
-
-  Future<Position?> _getPositionWithFallback() async {
-    if (!await Geolocator.isLocationServiceEnabled()) return null;
-
-    var perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
-    }
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-      return null;
-    }
-
-    try {
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 5),
-      );
-    } catch (_) {
-      return await Geolocator.getLastKnownPosition();
-    }
-  }
 
   Future<void> _centerAndPin(LatLng latLng) async {
     final c = mapController;
     if (c == null) return;
 
-    // 1) 지도 이동/확대
     await c.setCenter(latLng);
-    await c.setLevel(3); // 숫자 작을수록 확대
+    await c.setLevel(zoomLevel);
 
-    // 2) 기존 동일 ID 마커 제거 (지원 메서드: clearMarker)
     try {
-      await c.clearMarker(markerIds: [markerId]);
-    } catch (_) {
-      // 구버전이면 무시하거나 c.clear()로 전체 삭제 가능
-      // await c.clear();
-    }
+      await c.clearMarker(markerIds: [markerId]); // 버전에 따라 없으면 무시
+    } catch (_) {}
 
-    // 3) 마커 추가 (리스트 형태로 넘겨야 함)
     await c.addMarker(
       markers: [
-        Marker(
-          markerId: markerId,
-          latLng: latLng,
-          infoWindowContent: '현재 위치',
-        ),
+        Marker(markerId: markerId, latLng: latLng, infoWindowContent: '현재 위치'),
       ],
     );
   }
 
+  Future<Position?> _getPosition() async {
+    try {
+      // ⬇️ 최신 API: LocationSettings 사용 (desiredAccuracy/timeLimit 대체)
+      const settings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 5),
+      );
+      return await Geolocator.getCurrentPosition(locationSettings: settings);
+    } catch (_) {
+      return await Geolocator.getLastKnownPosition();
+    }
+  }
+
   Future<void> _onPressed(BuildContext context) async {
-    // A. 컨트롤러 준비 확인
-    final ready = await _ensureControllerReady();
-    if (!ready) {
-      _snack(context, '지도가 아직 준비되지 않았어요. 잠시 후 다시 시도해 주세요.');
+    if (mapController == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('지도가 아직 준비되지 않았어요.')));
       return;
     }
 
-    // B. 위치 획득
-    final pos = await _getPositionWithFallback();
-    if (pos == null) {
-      _snack(context, '현재 위치를 가져올 수 없어요. (에뮬레이터 Location ON + 좌표 Set Location 필요)');
-      // 안전 기본값(서울시청)으로 이동 + 핀
-      await _centerAndPin(LatLng(37.5665, 126.9780));
+    // await 전에 Messenger 미리 캐싱 (context across async gap 회피)
+    final messenger = ScaffoldMessenger.of(context);
+
+    final status = await LocationAccess.ensureAll(context);
+    if (!context.mounted) return;
+
+    if (status != LocationAccessStatus.granted) {
+      final msg = switch (status) {
+        LocationAccessStatus.serviceDisabled =>
+          '위치 서비스가 꺼져 있어 현재 위치를 가져올 수 없어요.',
+        LocationAccessStatus.permissionDenied => '위치 권한이 없어 현재 위치를 사용할 수 없어요.',
+        LocationAccessStatus.permissionPermanentlyDenied =>
+          '앱 설정에서 위치 권한을 허용해주세요.',
+        _ => '현재 위치 접근에 실패했어요.',
+      };
+      messenger.showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
 
-    // C. 지도 이동 + 핀
-    await _centerAndPin(LatLng(pos.latitude, pos.longitude));
-    _snack(context, '현재 위치로 이동했습니다.');
+    final pos = await _getPosition();
+    if (!context.mounted) return;
+
+    final target = (pos != null)
+        ? LatLng(pos.latitude, pos.longitude)
+        : (fallbackCenter ?? _defaultFallback);
+
+    await _centerAndPin(target);
+
+    if (!context.mounted) return;
+    messenger.showSnackBar(const SnackBar(content: Text('현재 위치로 이동했습니다.')));
   }
 
   @override
@@ -117,10 +101,14 @@ class CurrentLocationBtn extends StatelessWidget {
       fillColor: Colors.white,
       elevation: 6,
       constraints: const BoxConstraints.tightFor(
-        width: 48,  // 원하는 지름
+        width: 48, // 원하는 지름
         height: 48, // 원하는 지름
       ),
-      child: const Icon(Icons.my_location, color: AppColors.mainColor, size: 22),
+      child: const Icon(
+        Icons.my_location,
+        color: AppColors.mainColor,
+        size: 22,
+      ),
     );
   }
 }

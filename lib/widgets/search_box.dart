@@ -8,13 +8,7 @@ class SearchBox extends StatelessWidget {
     return Material(
       elevation: 6.0, // ✅ 버튼과 동일
       color: Colors.white,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-          color: Colors.grey,
-      width: 1
-      )
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: TextField(

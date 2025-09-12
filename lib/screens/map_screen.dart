@@ -37,13 +37,25 @@ class _MapScreenState extends State<MapScreen> {
               right: 20,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 12,
                 children: [
                   // 검색창이 가로를 대부분 차지
                   const Expanded(child: SearchBox()),
+                  SizedBox(width: 12),
                   // 현재위치 버튼 (FAB 그대로 사용)
                   CurrentLocationBtn(mapController: _mapController),
                 ],
+              ),
+            ),
+
+            Positioned.fill(
+              child: DraggableScrollableSheet(
+                initialChildSize: 0.5, // 기본 높이(화면 비율)
+                minChildSize: 0.25, // 너무 뻑뻑하지 않게 initial보다 작게 추천
+                maxChildSize: 0.9,
+                expand: false, // 부모를 꽉 채우지 않음 (Stack에서 바닥에 떠 있음)
+                builder: (context, scrollController) {
+                  return MyBottomSheet(scrollController: scrollController);
+                },
               ),
             ),
 
@@ -51,18 +63,6 @@ class _MapScreenState extends State<MapScreen> {
               bottom: 20, //
               right: 20,
               child: MenuBtn(),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: DraggableScrollableSheet(
-                initialChildSize: 0.5, //기본 크키
-                minChildSize: 0.5, //작은
-                maxChildSize: 0.99, //큰
-                expand: false,
-                builder: (context, scrollController) {
-                  return MyBottomSheet(scrollController: scrollController);
-                },
-              ),
             ),
           ],
         ),

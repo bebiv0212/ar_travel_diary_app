@@ -16,12 +16,13 @@ class ProfileScreen extends StatelessWidget {
               spacing: 15,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                SizedBox(width: 15),
                 Text(
                   '프로필',
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 Whitebox(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -38,7 +39,7 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 30),
+                          const SizedBox(width: 20),
                           Column(
                             children: [
                               Text(
@@ -68,7 +69,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           Greybox(
                             icon: Icon(Icons.edit, size: 30),
@@ -158,7 +159,7 @@ class ProfileScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                      )
+                      ),
                     ],
                   ),
                 ),

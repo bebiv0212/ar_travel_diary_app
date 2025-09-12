@@ -8,19 +8,21 @@ class MyBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          boxShadow: [
-            BoxShadow(color: Colors.black26, blurRadius: 5, spreadRadius: 2),
-          ],
-        ),
+    return Material(
+      // Scaffold 대신 Material 사용: 라운드/그림자/클리핑 여기서 처리
+      elevation: 12,
+      color: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      clipBehavior: Clip.antiAlias, // 라운드 안쪽으로 내용 클립
+      child: SafeArea(
+        top: false, // 상단 노치 영역까지 높이 늘어나지 않도록
         child: ListView(
-          controller: scrollController,
+          controller: scrollController, // ✅ 반드시 연결
           padding: const EdgeInsets.all(16),
           children: [
+            // 드래그 핸들
             Center(
               child: Container(
                 width: 40,
@@ -36,9 +38,10 @@ class MyBottomSheet extends StatelessWidget {
               "나의 기록",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 12)
-            ,
-            BottomSheetRecord()
+            const SizedBox(height: 12),
+
+            // 내용
+            const BottomSheetRecord(),
           ],
         ),
       ),

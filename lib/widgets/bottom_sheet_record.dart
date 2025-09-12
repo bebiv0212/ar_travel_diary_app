@@ -79,15 +79,6 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
                           ),
                         ),
                 ),
-                // 점 인디케이터
-                // // 1) PageView: 페이지 바뀔 때 현재 인덱스 갱신
-                // PageView.builder(  // 여기 없어야 데이터 부분이 뜬다
-                //   controller: _pageController,
-                //   itemCount: widget.images.length,
-                //   onPageChanged: (i) => setState(() => _page = i),
-                //   itemBuilder: (_, i) =>
-                //       Image.network(widget.images[i], fit: BoxFit.cover),
-                // ),
 
                 // 2) 점 인디케이터: 이미지 수만큼 생성, 현재(_page)만 회색
                 if (widget.images.length > 1)

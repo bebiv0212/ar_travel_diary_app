@@ -32,7 +32,7 @@ class Greybox extends StatelessWidget {
           children: [
             icon,
             SizedBox(
-              height: subtitle == null ? null : 61,
+              height: subtitle == null ? null : 61, //
               // 👈 subtitle 없으면 높이 제한 없음
               child: Column(
                 mainAxisSize: MainAxisSize.min, // 👈 내용만큼만 차지

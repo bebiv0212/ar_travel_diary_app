@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:joljak/widgets/bottom_sheet.dart';
 import 'package:joljak/widgets/current_location_btn.dart';
 import 'package:joljak/widgets/menu_btn.dart';
 import 'package:joljak/widgets/search_box.dart';
@@ -51,6 +52,18 @@ class _MapScreenState extends State<MapScreen> {
               right: 20,
               child: MenuBtn(),
             ),
+            
+            Align(
+                  alignment: Alignment.bottomCenter,child:
+              DraggableScrollableSheet(
+                  initialChildSize: 0.5,//기본 크키
+                  minChildSize: 0.5,//작은
+                  maxChildSize: 0.99,//큰
+                  expand: false,
+                  builder:(context,scrollController){
+                return MyBottomSheet(scrollController:scrollController);
+              })
+                )
           ],
         ),
       ),

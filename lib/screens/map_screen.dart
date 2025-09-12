@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:joljak/widgets/current_location_btn.dart';
-import 'package:joljak/widgets/menu_btn.dart';
+import 'package:joljak/widgets/menu_container.dart';
 import 'package:joljak/widgets/search_box.dart';
 import 'package:kakao_map_plugin/kakao_map_plugin.dart';
 import '../widgets/kakao_map_view.dart';
@@ -49,7 +49,7 @@ class _MapScreenState extends State<MapScreen> {
             Positioned(
               bottom: 20, //
               right: 20,
-              child: MenuBtn(),
+              child: MenuContainer(),
             ),
           ],
         ),

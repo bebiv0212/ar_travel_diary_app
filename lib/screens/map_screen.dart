@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:joljak/widgets/current_location_btn.dart';
-import 'package:joljak/widgets/menu_btn.dart';
+import 'package:joljak/widgets/menu_pill.dart';
 import 'package:joljak/widgets/search_box.dart';
 import 'package:kakao_map_plugin/kakao_map_plugin.dart';
 import '../widgets/kakao_map_view.dart';
@@ -39,7 +39,9 @@ class _MapScreenState extends State<MapScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 검색창이 가로를 대부분 차지
-                  const Expanded(child: SearchBox()),
+                  const Expanded(
+                    child: SizedBox(height: 48, child: SearchBox()),
+                  ),
                   SizedBox(width: 12),
                   // 현재위치 버튼 (FAB 그대로 사용)
                   CurrentLocationBtn(mapController: _mapController),
@@ -50,7 +52,7 @@ class _MapScreenState extends State<MapScreen> {
             Positioned.fill(
               child: DraggableScrollableSheet(
                 initialChildSize: 0.5, // 기본 높이(화면 비율)
-                minChildSize: 0.25, // 너무 뻑뻑하지 않게 initial보다 작게 추천
+                minChildSize: 0.09, // 너무 뻑뻑하지 않게 initial보다 작게 추천
                 maxChildSize: 0.9,
                 expand: false, // 부모를 꽉 채우지 않음 (Stack에서 바닥에 떠 있음)
                 builder: (context, scrollController) {
@@ -62,7 +64,7 @@ class _MapScreenState extends State<MapScreen> {
             Positioned(
               bottom: 20, //
               right: 20,
-              child: MenuBtn(),
+              child: MenuPill(onCreate: () {}, onCamera: () {}),
             ),
           ],
         ),

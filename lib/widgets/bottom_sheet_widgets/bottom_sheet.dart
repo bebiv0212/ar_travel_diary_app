@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:joljak/widgets/bottom_sheet_record.dart';
+import 'package:joljak/widgets/bottom_sheet_widgets/bottom_sheet_record.dart';
 
 class MyBottomSheet extends StatelessWidget {
   const MyBottomSheet({super.key, required this.scrollController});

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:joljak/widgets/current_location_btn.dart';
-import 'package:joljak/widgets/menu_pill.dart';
-import 'package:joljak/widgets/search_box.dart';
+import 'package:joljak/widgets/map_widgets/current_location_btn.dart';
+import 'package:joljak/widgets/map_widgets/menu_pill.dart';
+import 'package:joljak/widgets/map_widgets/search_box.dart';
 import 'package:kakao_map_plugin/kakao_map_plugin.dart';
-import '../widgets/kakao_map_view.dart';
-import 'package:joljak/widgets/bottom_sheet.dart';
+import '../widgets/map_widgets/kakao_map_view.dart';
+import 'package:joljak/widgets/bottom_sheet_widgets/bottom_sheet.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});

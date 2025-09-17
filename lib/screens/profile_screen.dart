@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:joljak/widgets/greybox.dart';
-import 'package:joljak/widgets/whitebox.dart';
+import 'package:joljak/widgets/common_widgets/greybox.dart';
+import 'package:joljak/widgets/common_widgets/whitebox.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});

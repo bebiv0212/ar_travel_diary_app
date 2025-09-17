@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:joljak/screens/profile_screen.dart';
-import '../api/auth_api.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -12,32 +12,35 @@ class _SignupScreenState extends State<SignupScreen> {
   final _email = TextEditingController();
   final _pw = TextEditingController();
   final _name = TextEditingController();
-  final _api = AuthApi();
-  bool _loading = false;
 
   @override
   void dispose() { _email.dispose(); _pw.dispose(); _name.dispose(); super.dispose(); }
 
   Future<void> _register() async {
-    setState(() => _loading = true);
+    final auth = context.read<AuthProvider>();
     try {
-      final (token, user) = await _api.register(
-        email: _email.text.trim(),
-        password: _pw.text,
+      await auth.register(
+        _email.text.trim(),
+        _pw.text,
         name: _name.text.trim().isEmpty ? null : _name.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('가입 완료: ${user.email}')));
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ProfileScreen()));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('가입 완료: ${auth.user?.email ?? ''}')),
+      );
+      Navigator.pop(context); // 뒤로 → AuthGate가 홈으로 전환
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final loading = context.watch<AuthProvider>().isLoading;
+
     return Scaffold(
       body: SafeArea(
         child: Stack(
@@ -46,7 +49,7 @@ class _SignupScreenState extends State<SignupScreen> {
               alignment: Alignment.topLeft,
               child: IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
+                onPressed: loading ? null : () => Navigator.pop(context),
               ),
             ),
             Center(
@@ -81,8 +84,8 @@ class _SignupScreenState extends State<SignupScreen> {
                     SizedBox(
                       height: 48, width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _loading ? null : _register,
-                        child: Text(_loading ? '가입 중...' : '회원가입'),
+                        onPressed: loading ? null : _register,
+                        child: Text(loading ? '가입 중...' : '회원가입'),
                       ),
                     ),
                   ],

@@ -18,7 +18,7 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
   final _nameCtrl = TextEditingController();
   int _selected = 0;
 
-  // 사진처럼 20개 팔레트 (원하면 자유롭게 수정)
+  // 팔레트 (원하면 수정)
   static const _palette = <Color>[
     Color(0xFFE74C3C), // red
     Color(0xFFE91E63), // pink
@@ -49,22 +49,21 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
   }
 
   void _submit() {
-    // final name = _nameCtrl.text.trim();
-    // if (name.isEmpty) {
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     const SnackBar(content: Text('그룹 이름을 입력해주세요')),
-    //   );
-    //   return;
-    // }
-    // Navigator.of(context).pop(
-    //   GroupCreateResult(name: name, color: _palette[_selected]),
-    // );
-    debugPrint('생성 버튼 클릭');
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('그룹 이름을 입력해주세요')),
+      );
+      return;
+    }
+    // 다이얼로그 닫으면서 값 반환
+    Navigator.of(context, rootNavigator: true).pop(
+      GroupCreateResult(name: name, color: _palette[_selected]),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // 중앙 모달(Dialog) 스타일
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       backgroundColor: Colors.white,
@@ -80,7 +79,7 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 상단 타이틀 + X 버튼
+              // 상단 타이틀 + 닫기
               Stack(
                 children: [
                   const Align(
@@ -104,7 +103,7 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
               ),
               const SizedBox(height: 8),
 
-              // 그룹 이름 입력 (회색 배경 느낌)
+              // 그룹 이름
               TextField(
                 controller: _nameCtrl,
                 decoration: InputDecoration(
@@ -126,7 +125,6 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
                 textInputAction: TextInputAction.next,
-                onSubmitted: (_) {}, // 필요 시
               ),
               const SizedBox(height: 16),
 
@@ -144,7 +142,7 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
               ),
               const SizedBox(height: 8),
 
-              // 색상 선택 박스 (연한 배경 카드)
+              // 색상 팔레트
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
@@ -200,14 +198,14 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
               ),
               const SizedBox(height: 16),
 
-              // 생성 버튼 (오렌지 톤)
+              // 생성 버튼
               SizedBox(
                 height: 48,
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFFFF8040), // 원하는 오렌지
+                    backgroundColor: const Color(0xFFFF8040),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(

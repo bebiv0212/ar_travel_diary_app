@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:joljak/widgets/common_widgets/greybox.dart';
 import 'package:joljak/widgets/common_widgets/whitebox.dart';
+import 'package:joljak/widgets/profile_widgets/group_add_btn.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -135,35 +136,7 @@ class ProfileScreen extends StatelessWidget {
                     const SizedBox(height: 12),
 
                     // 버튼은 Material + InkWell 권장 (리플/접근성)
-                    Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () {
-                          debugPrint('그룹추가하기 클릭');
-                        },
-                        child: Ink(
-                          width: double.infinity,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.add, size: 100),
-                              SizedBox(height: 8),
-                              Text(
-                                '그룹 추가하기',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 30),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                    GroupAddBtn(),
                   ],
                 ),
               ),

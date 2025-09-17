@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 
 class Greybox extends StatelessWidget {
   final Icon icon;
-  final Text text_int;
-  final String text_str;
+  final Text textInt;
+  final String textStr;
   final TextStyle? textStrStyle;
   final Widget? subtitle;
 
   const Greybox({
     super.key,
     required this.icon,
-    required this.text_int,
-    required this.text_str,
+    required this.textInt,
+    required this.textStr,
     this.textStrStyle,
     this.subtitle,
   });
@@ -37,12 +37,12 @@ class Greybox extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min, // 👈 내용만큼만 차지
                 children: [
-                  text_int,
+                  textInt,
                   if (subtitle != null) ...[subtitle!],
                 ],
               ),
             ),
-            Text(text_str, style: textStrStyle),
+            Text(textStr, style: textStrStyle),
           ],
         ),
       ),

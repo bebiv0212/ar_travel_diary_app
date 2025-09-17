@@ -10,161 +10,166 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Column(
-              spacing: 15,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(width: 15),
-                Text(
-                  '프로필',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                Whitebox(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+
+              // 상단 타이틀
+              const Text(
+                '프로필',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 14),
+
+              // 상단 카드
+              Whitebox(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 프로필 영역
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // 아바타
+                        ClipOval(
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            color: Colors.grey,
+                            // child: Image.network(avatarUrl, fit: BoxFit.cover), // 나중에 이미지 연결 시
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        // 이름/이메일 (좌측 정렬)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'username',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'example123@email.com',
+                              style: TextStyle(
+                                fontSize: 15,
                                 color: Colors.grey,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+                    const Text(
+                      '나의 기록',
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // 기록 카드 3개
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Greybox(
+                          icon: const Icon(Icons.edit, size: 30),
+                          textInt: const Text(
+                            '12',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
                           ),
-                          const SizedBox(width: 20),
-                          Column(
-                            children: [
-                              Text(
-                                'username',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'example123@email.com',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.grey,
-                                ),
-                              ),
+                          textStr: '친구',
+                        ),
+                        Greybox(
+                          icon: const Icon(Icons.group, size: 35),
+                          textInt: const Text(
+                            '8',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40, height: 1),
+                          ),
+                          subtitle: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.location_on, size: 12, color: Colors.purple),
+                              SizedBox(width: 2),
+                              Text('대학교 친구', overflow: TextOverflow.ellipsis),
                             ],
                           ),
-                        ],
-                      ),
-
-                      Text(
-                        '나의 기록',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
+                          textStr: '자주 찾는 그룹',
+                          textStrStyle: const TextStyle(fontSize: 12),
                         ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Greybox(
-                            icon: Icon(Icons.edit, size: 30),
-                            text_int: Text(
-                              '12',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 40,
-                              ),
-                            ),
-                            text_str: '친구',
+                        Greybox(
+                          icon: const Icon(Icons.photo_camera, size: 30),
+                          textInt: const Text(
+                            '12',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
                           ),
-                          Greybox(
-                            icon: Icon(Icons.group, size: 35),
-                            text_int: Text(
-                              '8',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 40,
-                                height: 1,
-                              ),
-                            ),
-                            subtitle: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.location_on,
-                                  size: 12,
-                                  color: Colors.purple,
-                                ),
-                                Text('대학교 친구'), // 여기에 그룹을 db에서 받아와야함
-                              ],
-                            ),
-                            text_str: '자주 찾는 그룹',
-                            textStrStyle: TextStyle(fontSize: 12),
-                          ),
-                          Greybox(
-                            icon: Icon(Icons.photo_camera, size: 30),
-                            text_int: Text(
-                              '12',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 40,
-                              ),
-                            ),
-                            text_str: 'AR 사진',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                          textStr: 'AR 사진',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                Whitebox(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '그룹 관리',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      GestureDetector(
+              ),
+
+              const SizedBox(height: 14),
+
+              // 그룹 관리
+              Whitebox(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '그룹 관리',
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // 버튼은 Material + InkWell 권장 (리플/접근성)
+                    Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
                         onTap: () {
-                          print("그룹 추가하기 클릭됨!");
+                          debugPrint('그룹추가하기 클릭');
                         },
-                        child: Container(
+                        child: Ink(
                           width: double.infinity,
                           height: 200,
                           decoration: BoxDecoration(
-                            color: Colors.grey,
+                            color: Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: const [
                               Icon(Icons.add, size: 100),
+                              SizedBox(height: 8),
                               Text(
                                 '그룹 추가하기',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 30,
-                                ),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 30),
                               ),
                             ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),

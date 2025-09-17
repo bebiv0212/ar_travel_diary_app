@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:joljak/providers/group_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:kakao_map_plugin/kakao_map_plugin.dart';
 
@@ -29,6 +30,7 @@ class MyApp extends StatelessWidget {
         // 세션은 여전히 로드하지만, 초기 라우팅에는 사용하지 않습니다.
         ChangeNotifierProvider(create: (_) => AuthProvider()..loadSession()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider(create: (_) => GroupProvider()),
       ],
       child: MaterialApp(
         title: 'AR Travel Diary',

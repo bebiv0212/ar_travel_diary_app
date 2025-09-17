@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:joljak/widgets/common_widgets/greybox.dart';
+
+import 'package:joljak/providers/auth_provider.dart';
+import 'package:joljak/providers/group_provider.dart';
+
 import 'package:joljak/widgets/common_widgets/whitebox.dart';
+import 'package:joljak/widgets/common_widgets/greybox.dart';
 import 'package:joljak/widgets/profile_widgets/group_add_btn.dart';
-import '../providers/auth_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -24,6 +27,7 @@ class ProfileScreen extends StatelessWidget {
               const Text('프로필', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               const SizedBox(height: 14),
 
+              // ── 상단 프로필 카드 ──────────────────────────────────────────────
               Whitebox(
                 padding: const EdgeInsets.all(14),
                 child: Column(
@@ -45,7 +49,7 @@ class ProfileScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user?.name?.trim().isNotEmpty == true ? user!.name!.trim() : (user?.email ?? 'Guest'),
+                              auth.userDisplayName,
                               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -71,8 +75,8 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 16),
+
                     const Text('나의 기록', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
 
@@ -112,6 +116,7 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 14),
 
+              // ── 그룹 관리 카드 ────────────────────────────────────────────────
               Whitebox(
                 padding: const EdgeInsets.all(18),
                 child: Column(
@@ -119,8 +124,29 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     const Text('그룹 관리', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
-                    // 버튼은 Material + InkWell 권장 (리플/접근성)
-                    GroupAddBtn(),
+
+                    Consumer<GroupProvider>(
+                      builder: (context, gp, _) {
+                        if (gp.isLoading) {
+                          return const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              height: 48,
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                          );
+                        }
+
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            for (final g in gp.groups) _GroupCard(name: g.name, color: g.color),
+                            const GroupAddBtn(), // 항상 마지막에 “+” 타일
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -130,6 +156,45 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 그룹 카드 (Add 버튼과 동일한 크기/모서리)
+class _GroupCard extends StatelessWidget {
+  const _GroupCard({required this.name, required this.color});
+  final String name;
+  final Color color;
+
+  static const double tileSize = GroupAddBtn.tileSize;
+  static const BorderRadius kRadius = GroupAddBtn.kRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: tileSize,
+          height: tileSize,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: kRadius,
+            border: Border.all(color: Colors.black12.withOpacity(0.08)),
+          ),
+          child: Icon(Icons.place_rounded, color: color, size: 30),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: tileSize + 4,
+          child: Text(
+            name,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 11),
+          ),
+        ),
+      ],
     );
   }
 }

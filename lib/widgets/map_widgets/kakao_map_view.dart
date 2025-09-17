@@ -23,6 +23,10 @@ class KakaoMapView extends StatefulWidget {
   /// lastKnown 먼저 시도 후, 정확 위치로 재이동할지
   final bool preferLastKnownFirst;
 
+  /// 현재 위치 원(circle) ID들 — 다른 곳과 충돌 없게 고정
+  static const String kDotCircleId = 'my_loc_dot';
+  static const String kAccCircleId = 'my_loc_acc';
+
   const KakaoMapView({
     super.key,
     this.onMapCreated,
@@ -49,10 +53,8 @@ class _KakaoMapViewState extends State<KakaoMapView> {
         _c = controller;
         widget.onMapCreated?.call(controller);
 
-        // 초기 줌만 세팅 (빠른 첫 렌더)
         await controller.setLevel(widget.initialLevel);
 
-        // 위치 이동은 비차단으로 예약 실행
         if (widget.centerToCurrentOnInit) {
           _scheduleCenterToCurrent();
         }
@@ -71,19 +73,72 @@ class _KakaoMapViewState extends State<KakaoMapView> {
     });
   }
 
-  // 지도는 이미 뜬 뒤, 백그라운드로 현재 위치 이동 (await 결과에 의존 X)
+  Future<void> _drawLocationOverlay(
+      KakaoMapController c,
+      LatLng center, {
+        double? accuracyMeters,
+      }) async {
+    // 기존 원 제거
+    try {
+      await c.clearCircle(circleIds: [
+        KakaoMapView.kDotCircleId,
+        KakaoMapView.kAccCircleId,
+      ]);
+    } catch (_) {}
+
+    // 현재 위치 점
+    final dot = Circle(
+      circleId: KakaoMapView.kDotCircleId,
+      center: center,
+      radius: 6,
+      strokeColor: Colors.white,
+      strokeOpacity: 1,
+      strokeWidth: 2,
+      fillColor: const Color(0xFF1976D2),
+      fillOpacity: 1,
+      zIndex: 10000,
+    );
+
+    final List<Circle> circles = [dot];
+
+    // 정확도 반경
+    if (accuracyMeters != null && accuracyMeters.isFinite && accuracyMeters > 0) {
+      final clamped = accuracyMeters.clamp(10, 300.0);
+      circles.add(
+        Circle(
+          circleId: KakaoMapView.kAccCircleId,
+          center: center,
+          radius: clamped.toDouble(),
+          strokeColor: const Color(0xFF1976D2),
+          strokeOpacity: 0.3,
+          strokeWidth: 1,
+          fillColor: const Color(0xFF1976D2),
+          fillOpacity: 0.10,
+          zIndex: 9999,
+        ),
+      );
+    }
+
+    await c.addCircle(circles: circles);
+  }
+
+  // 지도는 이미 뜬 뒤, 비차단으로 현재 위치 표시/이동
   Future<void> _centerToCurrentNonBlocking() async {
     final c = _c;
     if (c == null) return;
 
     LatLng? quickTarget;
 
-    // 1) lastKnown으로 즉시 이동(있으면)
+    // 1) lastKnown으로 "빠른" 점/센터
     if (widget.preferLastKnownFirst) {
       try {
         final last = await Geolocator.getLastKnownPosition();
         if (last != null) {
           quickTarget = LatLng(last.latitude, last.longitude);
+          // 오버레이 먼저 찍고
+          // ignore: unawaited_futures
+          _drawLocationOverlay(c, quickTarget);
+
           // 비차단 이동
           // ignore: unawaited_futures
           c.setCenter(quickTarget);
@@ -93,38 +148,35 @@ class _KakaoMapViewState extends State<KakaoMapView> {
       } catch (_) {}
     }
 
-    // 2) 서비스/권한 체크 → 현재 위치 (짧은 타임아웃, 최신 API)
+    // 2) 서비스/권한 체크 & 정확 위치
     try {
       final service = await Geolocator.isLocationServiceEnabled();
       if (!service) {
         if (quickTarget == null) {
-          // 폴백만 이동
+          // 초기 폴백이라도 찍기
+          final fb = widget.fallbackCenter ?? LatLng(37.5665, 126.9780);
           // ignore: unawaited_futures
-          c.setCenter(widget.fallbackCenter ?? LatLng(37.5665, 126.9780));
-          // ignore: unawaited_futures
-          c.setLevel(widget.initialLevel);
+          _drawLocationOverlay(c, fb);
         }
         return;
       }
 
       var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
-        // 자동 이동에서 권한을 바로 띄우고 싶지 않다면 이 줄을 제거하세요.
+        // 자동 진행 시 권한 팝업을 원치 않으면 이 줄 주석 처리
         perm = await Geolocator.requestPermission();
       }
       if (perm == LocationPermission.denied ||
           perm == LocationPermission.deniedForever) {
         if (quickTarget == null) {
-          // 폴백
+          final fb = widget.fallbackCenter ?? LatLng(37.5665, 126.9780);
           // ignore: unawaited_futures
-          c.setCenter(widget.fallbackCenter ?? LatLng(37.5665, 126.9780));
-          // ignore: unawaited_futures
-          c.setLevel(widget.initialLevel);
+          _drawLocationOverlay(c, fb);
         }
         return;
       }
 
-      // 현재 위치 (LocationSettings 사용)
+      // 현재 위치
       final settings = LocationSettings(
         accuracy: LocationAccuracy.high,
         timeLimit: Duration(milliseconds: widget.locationTimeoutMs),
@@ -134,23 +186,26 @@ class _KakaoMapViewState extends State<KakaoMapView> {
       try {
         pos = await Geolocator.getCurrentPosition(locationSettings: settings);
       } catch (_) {
-        // current 실패 시 lastKnown가 이미 반영되어 있으면 그대로 둠
+        // current 실패: lastKnown/폴백만 유지
         return;
       }
 
       final precise = LatLng(pos.latitude, pos.longitude);
-      // 최신 좌표로 다시 이동 (비차단)
+
+      // 오버레이 갱신 (정확도 반경 포함)
+      // ignore: unawaited_futures
+      _drawLocationOverlay(c, precise, accuracyMeters: pos.accuracy);
+
+      // 지도 이동
       // ignore: unawaited_futures
       c.setCenter(precise);
       // ignore: unawaited_futures
       c.setLevel(widget.initialLevel);
     } catch (_) {
       if (quickTarget == null) {
-        // fallback
+        final fb = widget.fallbackCenter ?? LatLng(37.5665, 126.9780);
         // ignore: unawaited_futures
-        c.setCenter(widget.fallbackCenter ?? LatLng(37.5665, 126.9780));
-        // ignore: unawaited_futures
-        c.setLevel(widget.initialLevel);
+        _drawLocationOverlay(c, fb);
       }
     }
   }

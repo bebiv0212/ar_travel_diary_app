@@ -14,6 +14,9 @@ class AuthProvider with ChangeNotifier {
   User? get user => _user;
   bool get isLoading => _loading;
   bool get isLoggedIn => _token != null;
+  String get userDisplayName =>
+      _user?.name?.trim().isNotEmpty == true ? _user!.name!.trim() : (_user?.email ?? 'Guest');
+
 
   Future<void> loadSession() async {
     _token = await TokenStorage.read();

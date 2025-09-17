@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:joljak/screens/profile_screen.dart';
-import '../api/auth_api.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,28 +12,31 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _pw = TextEditingController();
-  final _api = AuthApi();
-  bool _loading = false;
 
   @override
   void dispose() { _email.dispose(); _pw.dispose(); super.dispose(); }
 
   Future<void> _login() async {
-    setState(() => _loading = true);
+    final auth = context.read<AuthProvider>();
     try {
-      final (token, user) = await _api.login(email: _email.text.trim(), password: _pw.text);
+      await auth.login(_email.text.trim(), _pw.text);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('환영합니다, ${user.email}')));
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ProfileScreen()));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('환영합니다, ${auth.userDisplayName}')),
+      );
+      // AuthGate가 Provider 변화를 감지해서 자동으로 홈으로 전환
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final loading = context.watch<AuthProvider>().isLoading;
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -44,6 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 TextField(
                   controller: _email,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
                     labelText: '이메일', border: OutlineInputBorder(),
                   ),
@@ -60,14 +64,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   height: 48, width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _loading ? null : _login,
-                    child: Text(_loading ? '로그인 중...' : '로그인'),
+                    onPressed: loading ? null : _login,
+                    child: Text(loading ? '로그인 중...' : '로그인'),
                   ),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen()));
+                  onPressed: loading ? null : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SignupScreen()),
+                    );
                   },
                   child: const Text('회원가입'),
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:joljak/theme/app_colors.dart';
 
 /// 다이얼로그에서 반환할 결과
 class GroupCreateResult {
@@ -205,7 +206,7 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
                 child: ElevatedButton(
                   onPressed: _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF8040),
+                    backgroundColor: AppColors.mainColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(

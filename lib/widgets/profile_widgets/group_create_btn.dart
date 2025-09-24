@@ -177,16 +177,17 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
                               color: c,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.black12.withOpacity(0.15),
+                                color: Colors.black.withValues(alpha: 0.15),
                                 width: 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12.withOpacity(0.06),
+                                  color: Colors.black.withValues(alpha: 0.06),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 )
                               ],
+
                             ),
                           ),
                           if (selected)
@@ -211,7 +212,7 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
                   ),
                   child: const Text(
                     '생성',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
               ),

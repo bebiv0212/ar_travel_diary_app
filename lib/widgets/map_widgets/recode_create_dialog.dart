@@ -1,27 +1,28 @@
 import 'package:flutter/material.dart';
 import '../../api/group_api.dart';
-import '../../api/memories_api.dart';
+import '../../api/trip_records_api.dart';
 import '../common_widgets/form_decoration.dart';
 import '../profile_widgets/group_create_btn.dart';
 
-class RecordCreateDialog extends StatefulWidget {
-  const RecordCreateDialog({
-    super.key,
-    this.anchor, // 좌표는 제거, anchor는 선택
-  });
+bool _isValidObjectId(String? s) =>
+    s != null && RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(s);
 
-  final String? anchor;
+class RecordCreateDialog extends StatefulWidget {
+  const RecordCreateDialog({super.key, this.anchor});
+  final String? anchor; // (사용 안 함, 시그니처만 유지)
 
   @override
   State<RecordCreateDialog> createState() => _RecordCreateDialogState();
 }
 
 class _RecordCreateDialogState extends State<RecordCreateDialog> {
-  final _pinCtrl  = TextEditingController();
-  final _dateCtrl = TextEditingController();
+  final _titleCtrl   = TextEditingController();
+  final _dateCtrl    = TextEditingController();
+  final _contentCtrl = TextEditingController();
+
   DateTime? _selectedDate;
 
-  Group? _selectedGroup;
+  Group? _selectedGroup;     // 선택(선택사항)
   List<Group> _groups = [];
   bool _loading = true;
   bool _submitting = false;
@@ -34,8 +35,9 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
 
   @override
   void dispose() {
-    _pinCtrl.dispose();
+    _titleCtrl.dispose();
     _dateCtrl.dispose();
+    _contentCtrl.dispose();
     super.dispose();
   }
 
@@ -84,45 +86,58 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
       if (result != null) {
         try {
           final api = GroupApi();
-          final newGroup = await api.create(name: result.name, color: result.color);
+          final created = await api.create(name: result.name, color: result.color);
           await _fetchGroups();
-          setState(() => _selectedGroup = newGroup);
+          // ✅ id 기준으로 방금 만든 그룹을 다시 선택
+          setState(() {
+            _selectedGroup = _groups.firstWhere(
+                  (g) => g.id == created.id,
+              orElse: () => created,
+            );
+          });
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('그룹 생성 실패: $e')));
         }
       }
     } else {
-      setState(() => _selectedGroup = value as Group);
+      setState(() => _selectedGroup = value as Group?);
     }
   }
 
   Future<void> _submit() async {
     if (_submitting) return;
-    if (_pinCtrl.text.trim().isEmpty || _selectedGroup == null) {
+
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty || _selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('핀 이름과 그룹을 입력해주세요.')),
+        const SnackBar(content: Text('제목과 날짜를 입력해주세요.')),
+      );
+      return;
+    }
+
+    // groupId는 선택. 있으면 형식 검증 후 전송
+    final String? gid = _selectedGroup?.id;
+    if (gid != null && !_isValidObjectId(gid)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('그룹 ID 형식이 올바르지 않습니다. 다른 그룹을 선택하거나 "지정 안 함"을 선택하세요.')),
       );
       return;
     }
 
     setState(() => _submitting = true);
     try {
-      final api = MemoriesApi();
+      final api = TripRecordsApi();
       await api.create(
-        groupId: _selectedGroup!.id,
-        text: _pinCtrl.text.trim(),
-        anchor: widget.anchor,
-        tags: const [],
-        favorite: false,
-        visibility: 'private',
-        date: _selectedDate,
-        // ✅ latitude/longitude는 전달하지 않음
+        title: title,
+        date: _selectedDate!,
+        groupId: gid, // ✅ 유효하면 포함, 아니면 null
+        content: _contentCtrl.text.trim().isEmpty ? null : _contentCtrl.text.trim(),
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('기록 생성 실패: $e')),
+          SnackBar(content: Text('여행 기록 생성 실패: $e')),
         );
       }
     } finally {
@@ -147,8 +162,8 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
               const SizedBox(height: 16),
 
               TextField(
-                controller: _pinCtrl,
-                decoration: filledDecoration(context, hintText: '핀 이름'),
+                controller: _titleCtrl,
+                decoration: filledDecoration(context, hintText: '제목'),
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 12),
@@ -175,11 +190,20 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
                 value: _selectedGroup,
                 isExpanded: true,
                 items: [
+                  const DropdownMenuItem(value: null, child: Text('지정 안 함')),
                   ..._groups.map((g) => DropdownMenuItem(value: g, child: Text(g.name))),
                   const DropdownMenuItem(value: '__create__', child: Text('새 그룹 생성')),
                 ],
                 onChanged: _onSelectGroup,
-                decoration: filledDecoration(context, hintText: '그룹지정'),
+                decoration: filledDecoration(context, hintText: '그룹지정(선택)'),
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: _contentCtrl,
+                minLines: 3,
+                maxLines: 6,
+                decoration: filledDecoration(context, hintText: '설명 (선택)'),
               ),
               const SizedBox(height: 20),
 

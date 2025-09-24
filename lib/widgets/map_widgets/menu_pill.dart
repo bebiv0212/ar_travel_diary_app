@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:joljak/widgets/map_widgets/recode_create_dialog.dart';
 
 class MenuPill extends StatelessWidget {
   const MenuPill({
@@ -35,7 +36,15 @@ class MenuPill extends StatelessWidget {
               height: itemHeight,
               icon: Icons.add,
               label: '생성',
-              onTap: onCreate,
+              onTap: () async {
+                final ok = await showDialog(
+                  context: context,
+                  builder: (_) => const RecordCreateDialog(), // ✅ 인자 없이
+                );
+                if (ok == true) {
+                  // 새 기록 반영
+                }
+              },
               borderRadius: BorderRadius.vertical(top: r.topLeft),
             ),
             const SizedBox(

@@ -9,7 +9,7 @@ import 'providers/navigation_provider.dart';
 import 'screens/map_screen.dart';
 import 'screens/ar_camera_screen.dart';
 import 'screens/profile_screen.dart';
-// import 'screens/login_screen.dart'; // 🔕 임시 비활성화: 로그인 게이트 끈 상태라 필요 없음
+import 'screens/login_screen.dart'; // ✅ 로그인 화면 다시 활성화
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,8 +17,8 @@ void main() {
   runApp(const MyApp());
 }
 
-/// 🔧 토글 스위치: 나중에 로그인 게이트 켜고 싶으면 true로만 바꾸세요.
-const bool kEnableAuthGate = false; // ← 임시로 로그인 건너뜀
+/// 🔧 토글 스위치: 로그인 게이트 켜기
+const bool kEnableAuthGate = true; // ✅ 로그인 테스트 위해 활성화
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // 세션은 여전히 로드하지만, 초기 라우팅에는 사용하지 않습니다.
+        // 세션은 여전히 로드
         ChangeNotifierProvider(create: (_) => AuthProvider()..loadSession()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
         ChangeNotifierProvider(create: (_) => GroupProvider()),
@@ -38,26 +38,32 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.white),
         ),
-        // ✅ 임시: 홈을 직접 보여줌 (로그인 화면 X)
         home: kEnableAuthGate ? const _AuthGate() : const _HomeScaffold(),
       ),
     );
   }
 }
 
-/// (보관용) 원래의 로그인 게이트 — 지금은 kEnableAuthGate=false 라서 사용 안 함
+/// 로그인 게이트
 class _AuthGate extends StatelessWidget {
   const _AuthGate();
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    if (auth.isLoading && !auth.isLoggedIn && auth.user == null) {
+
+    // 1) 세션 로딩 중
+    if (auth.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    // 로그인 안되어 있으면 로그인 화면으로 보내고 싶다면 여기서 분기
-    // return auth.isLoggedIn ? const _HomeScaffold() : const LoginScreen();
-    return const _HomeScaffold(); // 🔕 임시: 로그인 상태 무시하고 바로 홈
+
+    // 2) 로그인됨 → 홈
+    if (auth.isLoggedIn && auth.user != null) {
+      return const _HomeScaffold();
+    }
+
+    // 3) 로그인 안됨 → 로그인 화면
+    return const LoginScreen();
   }
 }
 

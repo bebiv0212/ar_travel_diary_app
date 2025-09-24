@@ -8,6 +8,8 @@ import 'package:joljak/widgets/common_widgets/whitebox.dart';
 import 'package:joljak/widgets/common_widgets/greybox.dart';
 import 'package:joljak/widgets/profile_widgets/group_add_btn.dart';
 
+import '../widgets/profile_widgets/group_card.dart';
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -34,8 +36,9 @@ class ProfileScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start, // 버튼을 윗줄에 맞추기
                       children: [
+                        // 아바타
                         ClipOval(
                           child: Container(
                             width: 100,
@@ -45,36 +48,61 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 20),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              auth.userDisplayName,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                              overflow: TextOverflow.ellipsis,
+
+                        // 이름/이메일: 아바타와 세로 중앙 정렬
+                        Expanded(
+                          child: SizedBox(
+                            height: 100, // 아바타와 동일 높이
+                            child: Align(
+                              alignment: Alignment.centerLeft, // 세로 가운데 + 왼쪽 정렬
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    auth.userDisplayName,
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    user?.email ?? '',
+                                    style: const TextStyle(fontSize: 15, color: Colors.grey),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              user?.email ?? '',
-                              style: const TextStyle(fontSize: 15, color: Colors.grey),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                          ),
                         ),
-                        const Spacer(),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            await context.read<AuthProvider>().logout();
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('로그아웃 되었습니다.')),
-                            );
-                          },
-                          icon: const Icon(Icons.logout),
-                          label: const Text('로그아웃'),
+
+                        const SizedBox(width: 8),
+
+                        // 로그아웃: 우상단 고정 (폭 좁을 때 자동 축소)
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              minimumSize: const Size(0, 36),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            onPressed: () async {
+                              await context.read<AuthProvider>().logout();
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('로그아웃 되었습니다.')),
+                              );
+                            },
+                            icon: const Icon(Icons.logout),
+                            label: const Text('로그아웃'),
+                          ),
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 16),
 
                     const Text('나의 기록', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
@@ -141,8 +169,14 @@ class ProfileScreen extends StatelessWidget {
                           spacing: 12,
                           runSpacing: 12,
                           children: [
-                            for (final g in gp.groups) _GroupCard(name: g.name, color: g.color),
-                            const GroupAddBtn(), // 항상 마지막에 “+” 타일
+                            for (final g in gp.groups)
+                              GroupCard(
+                                groupId: g.id,         // 또는 g._id (모델에 맞게)
+                                name: g.name,
+                                color: g.color,
+                                // onEdited: () => gp.fetchGroups(), // 필요시 새로고침 콜백
+                              ),
+                            const GroupAddBtn(),
                           ],
                         );
                       },
@@ -160,41 +194,3 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-/// 그룹 카드 (Add 버튼과 동일한 크기/모서리)
-class _GroupCard extends StatelessWidget {
-  const _GroupCard({required this.name, required this.color});
-  final String name;
-  final Color color;
-
-  static const double tileSize = GroupAddBtn.tileSize;
-  static const BorderRadius kRadius = GroupAddBtn.kRadius;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: tileSize,
-          height: tileSize,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius: kRadius,
-            border: Border.all(color: Colors.black12.withOpacity(0.08)),
-          ),
-          child: Icon(Icons.place_rounded, color: color, size: 30),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
-          width: tileSize + 4,
-          child: Text(
-            name,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-            style: const TextStyle(fontSize: 11),
-          ),
-        ),
-      ],
-    );
-  }
-}

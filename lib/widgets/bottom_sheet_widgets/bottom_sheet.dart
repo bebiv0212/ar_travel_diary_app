@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:joljak/widgets/bottom_sheet_widgets/bottom_sheet_record.dart';
+import 'seed_records.dart';
+import 'data_page.dart';
 
 class MyBottomSheet extends StatelessWidget {
   const MyBottomSheet({super.key, required this.scrollController});
@@ -38,10 +40,24 @@ class MyBottomSheet extends StatelessWidget {
               "나의 기록",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 15),
 
             // 내용
-            const BottomSheetRecord(),
+            ...(sampleRecords.isNotEmpty
+                ? sampleRecords.map((record) => Column(children: [ InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DataPage(record: record),
+                  ),
+                );
+              },
+              child: BottomSheetRecord(record: record),
+            ) ,const SizedBox(height: 60)])).toList()
+                : [const Text("기록이 없습니다.") ]),
+
+
           ],
         ),
       ),

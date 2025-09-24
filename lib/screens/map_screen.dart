@@ -64,7 +64,7 @@ class _MapScreenState extends State<MapScreen> {
             Positioned(
               bottom: 20, //
               right: 20,
-              child: MenuPill(onCreate: () {}, onCamera: () {}),
+              child: MenuPill(),
             ),
           ],
         ),

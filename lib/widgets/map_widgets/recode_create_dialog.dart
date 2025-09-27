@@ -57,9 +57,11 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
       });
     } catch (e) {
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('그룹 불러오기 실패: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('그룹 불러오기 실패: $e')),
+        );
+      }
     }
   }
 
@@ -93,6 +95,7 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
           final api = GroupApi();
           final created = await api.create(name: result.name, color: result.color);
           await _fetchGroups();
+          // ✅ 방금 만든 그룹을 선택 상태로
           setState(() {
             _selectedGroup = _groups.firstWhere(
                   (g) => g.id == created.id,
@@ -100,7 +103,11 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
             );
           });
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('그룹 생성 실패: $e')));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('그룹 생성 실패: $e')),
+            );
+          }
         }
       }
     } else {
@@ -193,7 +200,10 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
               _loading
                   ? const Center(child: CircularProgressIndicator())
                   : DropdownButtonFormField<dynamic>(
-                value: _selectedGroup,
+                // 🔧 포인트 1: value → initialValue 로 변경 (deprecation 해결)
+                // 🔧 포인트 2: key 를 주어 groups/selected 가 바뀌면 위젯을 재생성 → initialValue 재적용
+                key: ValueKey('grp-${_groups.length}-${_selectedGroup?.id ?? 'none'}'),
+                initialValue: _selectedGroup,
                 isExpanded: true,
                 items: [
                   const DropdownMenuItem(value: null, child: Text('지정 안 함')),

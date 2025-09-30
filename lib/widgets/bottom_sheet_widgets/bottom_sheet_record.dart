@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'seed_records.dart';
-
+import 'trip_record.dart';
 
 class BottomSheetRecord extends StatefulWidget {
   const BottomSheetRecord({
     super.key,
     required this.record});
-  final Record record;
+  final TripRecord record;
 
   @override
   State<BottomSheetRecord> createState() => _BottomSheetRecordState();
@@ -51,7 +50,7 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
                   SizedBox(
                     height: 200,
                     width: double.infinity,
-                    child: r.images.isEmpty
+                    child: r.photoUrls.isEmpty
                         ? Container(
                             color: Colors.grey[300],
                             alignment: Alignment.center,
@@ -59,10 +58,10 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
                           )
                         : PageView.builder(
                             controller: _pageController,
-                            itemCount: r.images.length,
+                            itemCount: r.photoUrls.length,
                             onPageChanged: (i) => setState(() => _page = i),
                             itemBuilder: (_, i) => Image.network(
-                              r.images[i],
+                              r.photoUrls[i],
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
                                 color: Colors.grey[300],
@@ -74,13 +73,13 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
                   ),
       
                   // 2) 점 인디케이터: 이미지 수만큼 생성, 현재(_page)만 회색
-                  if (r.images.length > 1)
+                  if (r.photoUrls.length > 1)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: List.generate(
-                          r.images.length,
+                          r.photoUrls.length,
                           (i) => AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             margin: const EdgeInsets.symmetric(horizontal: 6),
@@ -119,9 +118,9 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      r.description.isEmpty
+                      r.content.isEmpty
                           ? "Description"
-                          : r.description,
+                          : r.content,
                       style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -141,8 +140,8 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
                   Icon(Icons.place_outlined, size: 16, color: Colors.purple[700]),
                   const SizedBox(width: 4),
                   Text(
-                    r.location.isEmpty ? 'Group' : r.location,
-                    style: const TextStyle(
+                      (r.group.name.isEmpty ) ? 'Group' : r.group.name,
+                        style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),

@@ -13,9 +13,13 @@ class AuthProvider with ChangeNotifier {
 
   User? get user => _user;
   bool get isLoading => _loading;
-  bool get isLoggedIn => _token != null;
+  // bool get isLoggedIn => _token != null;
+  bool get isLoggedIn => _token?.isNotEmpty == true;
+  String get token => _token ?? '';
   String get userDisplayName =>
-      _user?.name?.trim().isNotEmpty == true ? _user!.name!.trim() : (_user?.email ?? 'Guest');
+      // _user?.name?.trim().isNotEmpty == true ? _user!.name!.trim() : (_user?.email ?? 'Guest');
+  (_user?.name?.trim().isNotEmpty ?? false) ? _user!.name!.trim() : (_user?.email ?? 'Guest');
+
 
 
   Future<void> loadSession() async {
@@ -31,6 +35,7 @@ class AuthProvider with ChangeNotifier {
     try {
       final (t, u) = await _api.register(email: email, password: password, name: name);
       _token = t; _user = u;
+      await TokenStorage.save(t);
     } finally {
       _loading = false; notifyListeners();
     }
@@ -41,6 +46,7 @@ class AuthProvider with ChangeNotifier {
     try {
       final (t, u) = await _api.login(email: email, password: password);
       _token = t; _user = u;
+      await TokenStorage.save(t);
     } finally {
       _loading = false; notifyListeners();
     }

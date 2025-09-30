@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:joljak/providers/group_provider.dart';
+import 'package:joljak/widgets/bottom_sheet_widgets/trip_record_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:kakao_map_plugin/kakao_map_plugin.dart';
 
@@ -31,6 +32,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()..loadSession()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
         ChangeNotifierProvider(create: (_) => GroupProvider()),
+        ChangeNotifierProvider(create: (_) => TripRecordProvider()),
       ],
       child: MaterialApp(
         title: 'AR Travel Diary',

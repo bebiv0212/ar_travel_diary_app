@@ -9,7 +9,7 @@ import 'package:joljak/widgets/bottom_sheet_widgets/trip_record.dart'; // ✅ �
 const String kBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   // 에뮬레이터: 10.0.2.2 / 실기기: PC LAN IP (예: 192.168.x.x)
-  defaultValue: 'http://10.0.2.2:4000',
+  defaultValue: 'http://172.16.4.169:4000',
 );
 
 class TripRecordService {

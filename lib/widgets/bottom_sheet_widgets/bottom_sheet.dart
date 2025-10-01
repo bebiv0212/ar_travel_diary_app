@@ -5,47 +5,22 @@ import 'package:joljak/widgets/bottom_sheet_widgets/bottom_sheet_record.dart';
 import 'trip_record.dart';
 import 'trip_record_provider.dart';
 
-class MyBottomSheet extends StatefulWidget {
+class MyBottomSheet extends StatelessWidget {
   const MyBottomSheet({super.key, required this.scrollController});
   final ScrollController scrollController;
 
-  @override
-  State<MyBottomSheet> createState() => _MyBottomSheetState();
-}
-
-class _MyBottomSheetState extends State<MyBottomSheet> {
-  late final ScrollController _listController;
-
-  @override
-  void initState() {
-    super.initState();
-    _listController = widget.scrollController;
-    _listController.addListener(_onScroll);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final p = context.read<TripRecordProvider>();
-      if (!p.initialLoaded) p.refresh();
-    });
+  Future<void> _pullToRefresh(BuildContext context) async {
+    await context.read<TripRecordProvider>().refresh();
   }
 
-  void _onScroll() {
+  bool _handleScroll(BuildContext context, ScrollNotification n) {
     final p = context.read<TripRecordProvider>();
-    if (!p.loading &&
-        p.hasMore &&
-        _listController.position.pixels >=
-            _listController.position.maxScrollExtent - 200) {
+    if (n.metrics.pixels >= n.metrics.maxScrollExtent - 200 &&
+        !p.loading &&
+        p.hasMore) {
       p.loadMore();
     }
-  }
-
-  @override
-  void dispose() {
-    _listController.removeListener(_onScroll);
-    super.dispose();
-  }
-
-  Future<void> _pullToRefresh() async {
-    await context.read<TripRecordProvider>().refresh();
+    return false; // 다른 리스너들도 알림 받도록
   }
 
   @override
@@ -61,88 +36,98 @@ class _MyBottomSheetState extends State<MyBottomSheet> {
         top: false,
         child: Consumer<TripRecordProvider>(
           builder: (context, p, _) {
+            // 최초 1회만 로드
+            if (!p.initialLoaded && !p.loading) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!p.initialLoaded && !p.loading) {
+                  p.refresh();
+                }
+              });
+            }
+
             final items = p.items;
 
             return RefreshIndicator(
-              onRefresh: _pullToRefresh,
-              child: CustomScrollView(
-                controller: _listController,
-                slivers: [
-                  // 드래그 핸들
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 10, bottom: 12),
-                      child: Center(
+              onRefresh: () => _pullToRefresh(context),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) => _handleScroll(context, n),
+                child: CustomScrollView(
+                  controller: scrollController,
+                  slivers: [
+                    // 드래그 핸들
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 10, bottom: 12),
+                        child: Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[400],
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // 🔒 고정 헤더: "나의 기록"
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _PinnedHeaderDelegate(
+                        height: 60,
                         child: Container(
-                          width: 40,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[400],
-                            borderRadius: BorderRadius.circular(2),
+                          color: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          alignment: Alignment.centerLeft,
+                          child: const Text(
+                            '나의 기록',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
 
-                  // 🔒 고정 헤더: "나의 기록"
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _PinnedHeaderDelegate(
-                      height: 60,
-                      child: Container(
-                        color: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        alignment: Alignment.centerLeft,
-                        child: const Text(
-                          '나의 기록',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    // 상태별 블록
+                    if (!p.initialLoaded && p.loading)
+                      const SliverToBoxAdapter(child: _InlineLoading()),
 
+                    if (p.initialLoaded && items.isEmpty && !p.loading)
+                      const SliverToBoxAdapter(child: _EmptyState()),
+
+                    // 아이템 목록
+                    if (items.isNotEmpty)
+                      SliverList.builder(
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          final TripRecord record = items[index];
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DataPage(record: record),
+                                  ),
+                                );
+                              },
+                              child: BottomSheetRecord(record: record),
+                            ),
+                          );
+                        },
                       ),
 
-                    ),
-                  ),
+                    // 하단 로딩 (무한 스크롤)
+                    if (p.loading && items.isNotEmpty)
+                      const SliverToBoxAdapter(child: _BottomLoading()),
 
-                  // 상태별 블록
-                  if (!p.initialLoaded && p.loading)
-                    const SliverToBoxAdapter(child: _InlineLoading()),
-
-                  if (p.initialLoaded && items.isEmpty && !p.loading)
-                    const SliverToBoxAdapter(child: _EmptyState()),
-
-                  // 아이템 목록
-                  if (items.isNotEmpty)
-                    SliverList.builder(
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final TripRecord record = items[index];
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => DataPage(record: record),
-                                ),
-                              );
-                            },
-                            child: BottomSheetRecord(record: record),
-                          ),
-                        );
-                      },
-                    ),
-
-                  // 하단 로딩 (무한 스크롤)
-                  if (p.loading && items.isNotEmpty)
-                    const SliverToBoxAdapter(child: _BottomLoading()),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                ],
+                    const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                  ],
+                ),
               ),
             );
           },

@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'trip_record.dart';
 import 'trip_record_provider.dart';
+import 'package:joljak/providers/group_provider.dart'; // UiGroup / GroupProvider
 
 class TripRecordEditPage extends StatefulWidget {
   const TripRecordEditPage({super.key, required this.record});
@@ -23,7 +24,10 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
   late List<String> _photoPathsOrUrls; // 로컬 파일 path 또는 http(s) URL
   bool _saving = false;
 
-  final ImagePicker _picker = ImagePicker(); // ✅ 갤러리 전용
+  // ⚠️ late 에러 방지용 기본값 후 initState에서 주입
+  GroupInfo _group = GroupInfo.empty;
+
+  final ImagePicker _picker = ImagePicker(); // 갤러리 전용
 
   @override
   void initState() {
@@ -32,6 +36,15 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     _contentCtrl = TextEditingController(text: widget.record.content);
     _date = widget.record.date;
     _photoPathsOrUrls = List<String>.from(widget.record.photoUrls);
+    _group = widget.record.group; // 초기 그룹 주입
+
+    // 페이지 진입 시 그룹 목록이 없으면 한 번 로드
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final gp = context.read<GroupProvider>();
+      if (gp.groups.isEmpty && !gp.isLoading) {
+        await gp.load();
+      }
+    });
   }
 
   @override
@@ -59,7 +72,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     return u.startsWith('http://') || u.startsWith('https://');
   }
 
-  /// ✅ 갤러리에서 여러 장 선택 (Android는 추가 설정 없이 동작)
+  /// 갤러리에서 여러 장 선택 (Android는 추가 설정 없이 동작)
   Future<void> _pickPhotosFromGallery() async {
     try {
       final images = await _picker.pickMultiImage(imageQuality: 85);
@@ -75,6 +88,96 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     }
   }
 
+  /// ✅ “가운데 뜨는 창”으로 그룹 선택 (지정 안 함 포함 / 버튼 선택)
+  Future<void> _openGroupDialog() async {
+    final gp = context.read<GroupProvider>();
+
+    // 열기 전 로드 보장
+    List<UiGroup> groups = gp.groups;
+    if (groups.isEmpty && !gp.isLoading) {
+      await gp.load();
+      groups = gp.groups; // 로드 후 스냅샷 고정
+    }
+
+    const kNoneId = '__NONE__'; // ‘지정 안 함’ 식별자
+
+    final pickedId = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('그룹 선택'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 맨 위 ‘지정 안 함’ 버튼
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(dialogCtx, kNoneId),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('지정 안 함'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (groups.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('등록된 그룹이 없습니다.'),
+                    )
+                  else
+                    ...groups.map((g) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(dialogCtx, g.id),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text(
+                            g.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    )),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, null),
+              child: const Text('닫기'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || pickedId == null) return;
+
+    if (pickedId == kNoneId) {
+      // ✅ ‘지정 안 함’
+      setState(() => _group = GroupInfo.empty);
+      return;
+    }
+
+    final sel = groups.firstWhere((x) => x.id == pickedId, orElse: () => groups.first);
+    setState(() {
+      _group = GroupInfo(id: sel.id, name: sel.name, color: null);
+    });
+  }
+
   Future<void> _save() async {
     if (_saving) return;
     final title = _titleCtrl.text.trim();
@@ -85,20 +188,33 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
       return;
     }
 
-    // 서버는 URL 배열을 받으므로, 로컬 경로는 제외하고 전송 (업로드 API 붙기 전 임시)
+    // 서버는 URL 배열을 받으므로, 로컬 경로는 제외하고 전송 (업로드 API 전 임시)
     final urlsOnly = _photoPathsOrUrls.where(_isHttpUrl).toList();
     final hasLocal = _photoPathsOrUrls.any((p) => !_isHttpUrl(p));
 
     setState(() => _saving = true);
     final p = context.read<TripRecordProvider>();
     try {
+      // 그룹 변경 여부 판단
+      final changed = _group.id != widget.record.group.id;
+
+      // ⚠️ 서버 규약에 맞추세요:
+      //  - 대부분은 ''(빈 문자열)을 보내면 groupId를 null로 업데이트(해제)합니다.
+      //  - 서버가 null로 해제한다면 아래를 null로 바꾸세요.
+      final String? sendGroupId = changed
+          ? (_group.id.isEmpty ? '' : _group.id)
+          : null;
+
       final updated = await p.updateRecord(
         id: widget.record.id,
         title: title,
         content: _contentCtrl.text.trim(),
         date: _date,
         photoUrls: urlsOnly,
+        groupId: sendGroupId, // ✅ 지정/해제 모두 한 번에 처리
       );
+      await p.refresh();
+
       if (mounted) {
         if (hasLocal) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -119,8 +235,31 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    final groupText =
-    (widget.record.group.name.isEmpty) ? 'Group' : 'Group';
+    // Provider에서 최신 이름(있으면) → 없으면 로컬 _group.name
+    final storeGroupName = context.select<GroupProvider, String?>((gp) {
+      try {
+        final g = gp.groups.firstWhere((x) => x.id == _group.id);
+        return g.name;
+      } catch (_) {
+        return null;
+      }
+    });
+    // 이미 있던 이름 로직 옆에 추가
+   final storeGroupColor = context.select<GroupProvider, Color?>((gp) {
+      try {
+        return gp.groups.firstWhere((x) => x.id == _group.id).color; // UiGroup.color
+      } catch (_) {
+        return null;
+      }
+    });
+
+// // 최종 보여줄 색 (Provider 우선 → 모델의 hex → 기본색)
+//     final Color groupColor = _group.color
+
+
+    final displayedGroupName = ((storeGroupName ?? _group.name).trim());
+    final hasGroup = displayedGroupName.isNotEmpty;
+    final chipLabel = hasGroup ? displayedGroupName : '지정 안 함';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -176,25 +315,36 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                                 ),
                               ),
                               const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: Colors.black12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.lightbulb_outline, size: 16),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      groupText,
-                                      style: const TextStyle(
+
+                              // ✅ 그룹 칩 (탭 → 가운데 다이얼로그)
+                              InkWell(
+                                onTap: _openGroupDialog,
+                                borderRadius: BorderRadius.circular(999),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(color: Colors.black12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (hasGroup) ...[
+                                        Icon(Icons.place_outlined, size: 16 ,color:  storeGroupColor,),
+                                        const SizedBox(width: 4),
+                                      ],
+                                      Text(
+                                        chipLabel,
+                                        style: TextStyle(
                                           fontSize: 12,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                  ],
+                                          fontWeight: FontWeight.w600,
+                                          color: hasGroup ? null : Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
@@ -222,7 +372,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                     separatorBuilder: (_, __) => const SizedBox(width: 10),
                     itemBuilder: (context, index) {
                       if (index == 0) {
-                        return _AddPhotoTile(onTap: _pickPhotosFromGallery); // ✅ 갤러리 호출
+                        return _AddPhotoTile(onTap: _pickPhotosFromGallery);
                       }
                       final path = _photoPathsOrUrls[index - 1].trim();
                       final isHttp = _isHttpUrl(path);
@@ -253,8 +403,8 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                             right: 4,
                             top: 4,
                             child: InkWell(
-                              onTap: () =>
-                                  setState(() => _photoPathsOrUrls.removeAt(index - 1)),
+                              onTap: () => setState(
+                                      () => _photoPathsOrUrls.removeAt(index - 1)),
                               child: Container(
                                 width: 22,
                                 height: 22,
@@ -298,7 +448,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
               ),
             ),
 
-            // ⬇️ 스크롤 안으로 들어온 CANCEL / SAVE
+            // CANCEL / SAVE
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),

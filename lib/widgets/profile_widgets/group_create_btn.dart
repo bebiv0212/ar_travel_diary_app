@@ -57,7 +57,6 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
       );
       return;
     }
-    // 다이얼로그 닫으면서 값 반환
     Navigator.of(context, rootNavigator: true).pop(
       GroupCreateResult(name: name, color: _palette[_selected]),
     );
@@ -65,158 +64,172 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: 16 + MediaQuery.of(context).viewInsets.bottom, // 키보드 대응
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 상단 타이틀 + 닫기
-              Stack(
-                children: [
-                  const Align(
-                    alignment: Alignment.center,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        '그룹 생성',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
+    final view = MediaQuery.of(context);
+    final kbVisible = view.viewInsets.bottom > 0;
 
-              // 그룹 이름
-              TextField(
-                controller: _nameCtrl,
-                decoration: InputDecoration(
-                  hintText: '그룹 이름',
-                  filled: true,
-                  fillColor: Colors.grey.shade200,
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 16),
+    // 사진 #2 느낌으로: 키보드가 보일 때만 화면 높이의 18%만 위로
+    const liftFraction = -0.18; // 더 올리고 싶으면 -0.22~-0.25로, 덜 올리면 -0.12~-0.15로
 
-              // 섹션 타이틀
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '포인트 색상',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // 색상 팔레트
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: GridView.builder(
-                  itemCount: _palette.length,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemBuilder: (_, i) {
-                    final c = _palette[i];
-                    final selected = i == _selected;
-                    return InkWell(
-                      onTap: () => setState(() => _selected = i),
-                      borderRadius: BorderRadius.circular(22),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: c,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.06),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                )
-                              ],
-
+    return MediaQuery.removeViewInsets(
+      context: context,
+      removeBottom: true, // 시스템이 다이얼로그를 강제로 밀어올리지 않도록
+      child: AnimatedSlide(
+        offset: kbVisible ? const Offset(0, liftFraction) : Offset.zero,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        child: Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24), // 고정
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: view.size.height * 0.85),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16), // 내부는 고정 패딩
+              child: SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 상단 타이틀 + 닫기
+                    Stack(
+                      children: [
+                        const Align(
+                          alignment: Alignment.center,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              '그룹 생성',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                           ),
-                          if (selected)
-                            const Icon(Icons.check, size: 20, color: Colors.white),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
 
-              // 생성 버튼
-              SizedBox(
-                height: 48,
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.mainColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text(
-                    '생성',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
+                    // 그룹 이름
+                    TextField(
+                      controller: _nameCtrl,
+                      decoration: InputDecoration(
+                        hintText: '그룹 이름',
+                        filled: true,
+                        fillColor: Colors.grey.shade200,
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 섹션 타이틀
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '포인트 색상',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 색상 팔레트
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: GridView.builder(
+                        itemCount: _palette.length,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 5,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
+                        itemBuilder: (_, i) {
+                          final c = _palette[i];
+                          final selected = i == _selected;
+                          return InkWell(
+                            onTap: () => setState(() => _selected = i),
+                            borderRadius: BorderRadius.circular(22),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: c,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.black,
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black,
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                                if (selected)
+                                  const Icon(Icons.check, size: 20, color: Colors.white),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 생성 버튼
+                    SizedBox(
+                      height: 48,
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.mainColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text(
+                          '생성',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

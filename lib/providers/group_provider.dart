@@ -10,13 +10,21 @@ class UiGroup {
 
 class GroupProvider with ChangeNotifier {
   final GroupApi _api;
-  GroupProvider({GroupApi? api}) : _api = api ?? GroupApi();
+  GroupProvider({GroupApi? api}) : _api = api ?? GroupApi ();
 
   final List<UiGroup> _groups = [];
   List<UiGroup> get groups => List.unmodifiable(_groups);
 
   bool _loading = false;
   bool get isLoading => _loading;
+
+  // ✅ 한 번만 불러오기용 플래그 (Stateless에서도 안전하게 호출)
+  bool _loaded = false;
+  bool get loaded => _loaded;
+
+  // ✅ 에러 상태 보관(옵션)
+  String? _error;
+  String? get error => _error;
 
   Future<void> load() async {
     _loading = true;

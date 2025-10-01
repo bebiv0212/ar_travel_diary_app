@@ -44,10 +44,8 @@ class GroupCard extends StatelessWidget {
             width: tileSize,
             height: tileSize,
             decoration: BoxDecoration(
-              // was: color.withOpacity(0.12)
               color: color.withValues(alpha: 0.12),
               borderRadius: kRadius,
-              // was: Colors.black12.withOpacity(0.08)
               border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
             ),
             child: Icon(Icons.place_rounded, color: color, size: 30),
@@ -187,16 +185,26 @@ class _GroupEditDialogState extends State<_GroupEditDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final view = MediaQuery.of(context);
+
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       clipBehavior: Clip.antiAlias,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: SingleChildScrollView(
+        // ✅ 키보드가 올라오면 그 높이만큼 하단 패딩을 더해 버튼이 가려지지 않음
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 12,
+          bottom: 16 + view.viewInsets.bottom,
+        ),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: ConstrainedBox(
+          // 데스크톱/태블릿에서 좌우 폭 제한
+          constraints: const BoxConstraints(maxWidth: 420),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -282,7 +290,6 @@ class _GroupEditDialogState extends State<_GroupEditDialog> {
                         ),
                         itemBuilder: (_, i) {
                           final c = _palette[i];
-                          // was: c.value == _selected.value
                           final selected = c == _selected;
 
                           return InkWell(

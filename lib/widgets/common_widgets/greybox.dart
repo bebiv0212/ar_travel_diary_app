@@ -22,7 +22,7 @@ class Greybox extends StatelessWidget {
       width: 95,
       height: 160,
       decoration: BoxDecoration(
-        color: Colors.grey,
+        color: Color(0xFFF9F9F9),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Padding(

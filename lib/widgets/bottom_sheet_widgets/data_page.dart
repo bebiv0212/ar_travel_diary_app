@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'trip_record.dart';
 import 'trip_record_provider.dart';
 import 'trip_record_edit_page.dart';
+import 'package:joljak/providers/group_provider.dart';
+
 // (Optional) 그룹 이름 매핑을 쓰고 싶으면 아래 임포트와 groupName 부분 주석 해제
 // import 'package:joljak/providers/group_provider.dart';
 
@@ -12,12 +14,14 @@ class DataPage extends StatefulWidget {
   const DataPage({super.key, required this.record});
   final TripRecord record;
 
+
   @override
   State<DataPage> createState() => _DataPageState();
 }
 
 class _DataPageState extends State<DataPage> {
   late TripRecord _record;
+
 
   @override
   void initState() {
@@ -28,15 +32,48 @@ class _DataPageState extends State<DataPage> {
   String _ymd(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}';
 
+  Future<bool> _confirmDelete(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('삭제할까요?'),
+        content: const Text('이 기록을 삭제하면 복구할 수 없어요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Colors.redAccent,
+            ),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Optional: GroupProvider에서 이름 매핑 (없으면 주석 유지)
     // final groupName = context.select<GroupProvider, String?>(
     //   (gp) => gp.nameOf(_record.groupId),
     // );
-    final showGroupChip = (_record.group.name ?? '').isNotEmpty;
-    final groupText = /* groupName ?? */ 'Group';
-
+    final showGroupChip = (_record.group.name).trim().isNotEmpty;
+    // 선택된 그룹 색: Provider 우선 → 모델의 hex → 기본색(FF5757)
+    final storeGroupColor = context.select<GroupProvider, Color?>((gp) {
+      try {
+        return gp.groups.firstWhere((g) => g.id == _record.group.id).color;
+      } catch (_) {
+        return null;
+      }
+    });
+    // final Color groupColor =
+    //     storeGroupColor ?? hexToColor(_record.group.color);
     final photos = _record.photoUrls;
 
     return Scaffold(
@@ -44,7 +81,7 @@ class _DataPageState extends State<DataPage> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // 상단 핸들 + 액션바(뒤로/편집)
+            // 상단 핸들 + 액션바(뒤로/편집/삭제)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -68,6 +105,8 @@ class _DataPageState extends State<DataPage> {
                           onPressed: () => Navigator.pop(context),
                         ),
                         const Spacer(),
+
+                        // ✏️ 편집
                         IconButton(
                           icon: const Icon(Icons.edit_rounded),
                           tooltip: '편집',
@@ -83,6 +122,33 @@ class _DataPageState extends State<DataPage> {
                             );
                             if (updated is TripRecord && mounted) {
                               setState(() => _record = updated); // 상세 즉시 갱신
+                            }
+                          },
+                        ),
+
+                        // 🗑️ 삭제
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline ,color: Color(0xffff5757)),
+                          tooltip: '삭제',
+                          onPressed: () async {
+                            final ok = await _confirmDelete(context);
+                            if (!ok) return;
+
+                            try {
+                              // ✅ 프로젝트 메서드명에 맞게 아래 한 줄만 필요시 변경
+                              // 예) deleteById, removeRecord 등…
+                              await context
+                                  .read<TripRecordProvider>()
+                              .deleteById(_record.id);
+
+                              if (!mounted) return;
+                              // 이전 화면으로 돌아가며 'deleted' 신호 전달 (필요 없으면 생략 가능)
+                              Navigator.pop(context, 'deleted');
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('삭제 실패: $e')),
+                              );
                             }
                           },
                         ),
@@ -121,12 +187,17 @@ class _DataPageState extends State<DataPage> {
                               border: Border.all(color: Colors.black12),
                             ),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.lightbulb_outline, size: 16),
-                                const SizedBox(width: 6),
+                                Icon(Icons.place_outlined, size: 16, color: storeGroupColor),
+                                const SizedBox(width: 4),
                                 Text(
-                                  groupText,
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                  // 🔧 편집 후에도 반영되도록 _record 사용(기존 widget.record → _record 로 수정)
+                                  (_record.group.name),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ],
                             ),

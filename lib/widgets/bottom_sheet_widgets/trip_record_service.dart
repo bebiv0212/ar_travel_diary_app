@@ -3,12 +3,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-import 'package:joljak/core/token_storage.dart'; // ✅ TokenStorage 하나만
-import 'package:joljak/widgets/bottom_sheet_widgets/trip_record.dart'; // ✅ 모델 패스(프로젝트에 맞게)
+import 'package:joljak/core/token_storage.dart';
+import 'package:joljak/widgets/bottom_sheet_widgets/trip_record.dart';
 
 const String kBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  // 에뮬레이터: 10.0.2.2 / 실기기: PC LAN IP (예: 192.168.x.x)
   defaultValue: 'http://10.0.2.2:4000',
 );
 
@@ -40,16 +39,14 @@ class TripRecordService {
     int limit = 20,
     String? groupId,
     String? month,
-    String?   q,
+    String? q,
   }) async {
     final query = <String, String>{
       'page': '$page',
       'limit': '$limit',
       if (groupId?.isNotEmpty == true) 'groupId': groupId!,
       if (month?.isNotEmpty == true) 'month': month!,
-      if (q
-          ?.trim()
-          .isNotEmpty == true) 'q': q!.trim(),
+      if (q?.trim().isNotEmpty == true) 'q': q!.trim(),
     };
     try {
       final res = await _withTimeout(
@@ -85,7 +82,8 @@ class TripRecordService {
       'title': title,
       'date': date.toIso8601String(),
       if (content != null) 'content': content,
-      if (groupId != null) 'groupId': groupId,
+      // ★ 빈 문자열로 오면 null로 보내 그룹 미지정/해제 의미 유지
+      if (groupId != null) 'groupId': groupId.isEmpty ? null : groupId, // ★
       if (photoUrls != null) 'photoUrls': photoUrls,
     };
 
@@ -120,7 +118,8 @@ class TripRecordService {
       if (title != null) 'title': title,
       if (content != null) 'content': content,
       if (date != null) 'date': date.toIso8601String(),
-      if (groupId != null) 'groupId': groupId,
+      // ★ 핵심: '' → null 로 변환해서 서버에 전달 (그룹 해제)
+      if (groupId != null) 'groupId': groupId.isEmpty ? null : groupId, // ★
       if (photoUrls != null) 'photoUrls': photoUrls,
     };
 
@@ -155,4 +154,3 @@ class TripRecordService {
     }
   }
 }
-

@@ -16,11 +16,16 @@ class MenuPill extends StatelessWidget {
     this.width = 50,
     this.itemHeight = 60,
     this.elevation = 10,
+    this.onPhotosReady, // ✅ 촬영/업로드 후 지도에 바로 마커 찍기 콜백
   });
 
   final double width;
   final double itemHeight;
   final double elevation;
+
+  /// ✅ 촬영/업로드 후, 지도에 마커를 찍고 싶을 때 호출
+  /// 전달 형식: 로컬 파일 경로 리스트 (EXIF가 있는 JPG 경로)
+  final void Function(List<String> localPhotoPaths)? onPhotosReady;
 
   // ───────────────────────── helpers ─────────────────────────
 
@@ -75,14 +80,13 @@ class MenuPill extends StatelessWidget {
     return false;
   }
 
-  /// 촬영 → (EXIF 표시) → JPEG 압축(EXIF 유지) → 진행률 보여주며 업로드
-  /// recordId 가 주어지면 업로드 완료 후 해당 일기에 사진 URL을 곧바로 추가한다.
+  /// 촬영 → (EXIF 표시) → JPEG 압축(EXIF 유지) → 업로드 → (성공 시) 지도에 마커 찍기
   Future<void> _captureCompressUploadFlow(BuildContext context, {String? recordId}) async {
     // 권한 확인
     final granted = await _ensureCameraPermission(context);
     if (!granted) return;
 
-    // 촬영
+    // 촬영 (미리보기에서 "사진 사용" 선택한 경우에만 path 반환하도록 openCamera 구현되어 있다고 가정)
     final path = await openCamera(context);
     if (path == null) return;
 
@@ -139,10 +143,13 @@ class MenuPill extends StatelessWidget {
     if (error != null || upload == null) {
       // ❌ 업로드 오류: 스낵바 대신 로그로
       debugPrint('[MenuPill] 업로드 실패: ${error ?? "unknown error"}');
+
+      // (원하면 업로드 실패여도 지도에 마커는 찍을 수 있음)
+      // onPhotosReady?.call([compress.file.path]);
       return;
     }
 
-    // ✅ 일기 ID가 있으면 사진 URL을 해당 일기에 바로 추가 (서버 라우트 지원 시)
+    // ✅ 일기 ID가 있으면 사진 URL을 해당 일기에 바로 추가
     if (recordId != null) {
       try {
         await TripRecordsApi().addPhotos(
@@ -151,11 +158,13 @@ class MenuPill extends StatelessWidget {
           thumbUrls: [if ((upload.thumbUrl ?? '').isNotEmpty) upload.thumbUrl!],
         );
       } catch (e) {
-        // ❌ 일기 연결 실패: 스낵바 대신 로그로
         debugPrint('[MenuPill] 사진 업로드 성공, 일기 연결 실패: $e');
-        return;
+        // 연결 실패여도 지도 마커는 가능
       }
     }
+
+    // ✅ 최종: 지도에 마커 찍기 (EXIF가 보존된 로컬 jpg 경로를 넘김)
+    onPhotosReady?.call([compress.file.path]);
 
     // 성공 안내
     ScaffoldMessenger.of(context).showSnackBar(
@@ -176,8 +185,7 @@ class MenuPill extends StatelessWidget {
             children: [
               const Text('사진도 첨부할까요?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 12),
-              const Text('방금 만든 여행 기록에 사진을 바로 추가할 수 있어요.',
-                  style: TextStyle(color: Colors.black54)),
+              const Text('방금 만든 여행 기록에 사진을 바로 추가할 수 있어요.', style: TextStyle(color: Colors.black54)),
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -223,7 +231,7 @@ class MenuPill extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 생성: 레코드 생성 후, 첨부 여부 묻고 찍어서 업로드 → 해당 레코드에 연결
+            // 생성: 레코드 생성 후 첨부 여부 묻고 → 촬영/업로드 → 일기 연결 + 지도 마커
             _MenuPillItem(
               height: itemHeight,
               icon: Icons.add,
@@ -247,7 +255,7 @@ class MenuPill extends StatelessWidget {
 
             const SizedBox(height: 1, child: ColoredBox(color: Colors.black)),
 
-            // 카메라: 단독 촬영/업로드(레코드 연결 없이 업로드만)
+            // 카메라: 단독 촬영/업로드 → 지도 마커
             _MenuPillItem(
               height: itemHeight,
               icon: Icons.photo_camera,

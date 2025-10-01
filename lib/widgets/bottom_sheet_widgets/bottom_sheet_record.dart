@@ -3,34 +3,23 @@ import 'package:provider/provider.dart';
 import '../../providers/group_provider.dart';
 import 'trip_record.dart';
 
-class BottomSheetRecord extends StatefulWidget {
+class BottomSheetRecord extends StatelessWidget {
   const BottomSheetRecord({
     super.key,
-    required this.record});
+    required this.record,
+  });
+
   final TripRecord record;
-
-
-  @override
-  State<BottomSheetRecord> createState() => _BottomSheetRecordState();
-}
-
-class _BottomSheetRecordState extends State<BottomSheetRecord> {
-  final PageController _pageController = PageController();
-  int _page = 0;
 
   String _formatDate(DateTime d) =>
       "${d.year.toString().padLeft(4, '0')}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}";
 
   @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final r = widget.record; // 👈 편하게 별칭
+    final r = record;
     final dt = r.date;
+
+    // 그룹 색상: Provider 우선 → 모델 hex(없으면 기본)
     final storeGroupColor = context.select<GroupProvider, Color?>((gp) {
       try {
         return gp.groups.firstWhere((g) => g.id == r.group.id).color;
@@ -38,14 +27,13 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
         return null;
       }
     });
-
+    final iconColor = storeGroupColor ?? const Color(0xFFFF5757);
 
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-          // ── 사진 캐러셀 ───────────────────────────────────────
+          // ── 사진 캐러셀 (있을 때만) ───────────────────────────
           if (r.photoUrls.isNotEmpty)
             Container(
               decoration: BoxDecoration(
@@ -57,15 +45,13 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: Stack(
-                  alignment: Alignment.bottomCenter,
+                  alignment: Alignment.bottomRight,
                   children: [
                     SizedBox(
                       height: 200,
                       width: double.infinity,
                       child: PageView.builder(
-                        controller: _pageController,
                         itemCount: r.photoUrls.length,
-                        onPageChanged: (i) => setState(() => _page = i),
                         itemBuilder: (_, i) => Image.network(
                           r.photoUrls[i],
                           fit: BoxFit.cover,
@@ -77,24 +63,18 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
                         ),
                       ),
                     ),
+                    // 간단한 개수 뱃지 (인디케이터 대신)
                     if (r.photoUrls.length > 1)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: List.generate(
-                            r.photoUrls.length,
-                                (i) => AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              margin: const EdgeInsets.symmetric(horizontal: 6),
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: (i == _page) ? Colors.grey : Colors.white70,
-                              ),
-                            ),
-                          ),
+                      Container(
+                        margin: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${r.photoUrls.length}',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
                         ),
                       ),
                   ],
@@ -103,7 +83,7 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
             ),
 
           const SizedBox(height: 16),
-      
+
           // ── 타이틀/설명/날짜 + 위치 ───────────────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,16 +95,11 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
                   children: [
                     Text(
                       r.title.isEmpty ? "Title" : r.title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      r.content.isEmpty
-                          ? "Description"
-                          : r.content,
+                      r.content.isEmpty ? "Description" : r.content,
                       style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -137,20 +112,21 @@ class _BottomSheetRecordState extends State<BottomSheetRecord> {
                   ],
                 ),
               ),
+
               // 오른쪽 위치
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (widget.record.group.name?.trim().isNotEmpty ?? false) ...[
-                    Icon(Icons.place_outlined, size: 16, color:storeGroupColor),
+                  if (r.group.name.trim().isNotEmpty) ...[
+                    Icon(Icons.place_outlined, size: 16, color: iconColor),
                     const SizedBox(width: 4),
                   ],
                   Text(
-                     widget.record.group.name,
+                    r.group.name,
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                 ],
-              )
+              ),
             ],
           ),
         ],

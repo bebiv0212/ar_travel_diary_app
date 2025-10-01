@@ -8,8 +8,14 @@ bool _isValidObjectId(String? s) =>
     s != null && RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(s);
 
 class RecordCreateDialog extends StatefulWidget {
-  const RecordCreateDialog({super.key, this.anchor});
-  final String? anchor; // (사용 안 함, 시그니처만 유지)
+  const RecordCreateDialog({
+    super.key,
+    this.anchor,
+    this.initialLocalPhotoPaths, // ✅ file:///… 경로들
+  });
+
+  final String? anchor;
+  final List<String>? initialLocalPhotoPaths; // ← 추가
 
   @override
   State<RecordCreateDialog> createState() => _RecordCreateDialogState();
@@ -21,8 +27,7 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
   final _contentCtrl = TextEditingController();
 
   DateTime? _selectedDate;
-
-  Group? _selectedGroup;     // 선택(선택사항)
+  Group? _selectedGroup;
   List<Group> _groups = [];
   bool _loading = true;
   bool _submitting = false;
@@ -52,9 +57,11 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
       });
     } catch (e) {
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('그룹 불러오기 실패: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('그룹 불러오기 실패: $e')),
+        );
+      }
     }
   }
 
@@ -88,7 +95,7 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
           final api = GroupApi();
           final created = await api.create(name: result.name, color: result.color);
           await _fetchGroups();
-          // ✅ id 기준으로 방금 만든 그룹을 다시 선택
+          // ✅ 방금 만든 그룹을 선택 상태로
           setState(() {
             _selectedGroup = _groups.firstWhere(
                   (g) => g.id == created.id,
@@ -96,7 +103,11 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
             );
           });
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('그룹 생성 실패: $e')));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('그룹 생성 실패: $e')),
+            );
+          }
         }
       }
     } else {
@@ -115,11 +126,10 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
       return;
     }
 
-    // groupId는 선택. 있으면 형식 검증 후 전송
     final String? gid = _selectedGroup?.id;
     if (gid != null && !_isValidObjectId(gid)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('그룹 ID 형식이 올바르지 않습니다. 다른 그룹을 선택하거나 "지정 안 함"을 선택하세요.')),
+        const SnackBar(content: Text('그룹 ID 형식이 올바르지 않습니다.')),
       );
       return;
     }
@@ -127,13 +137,16 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
     setState(() => _submitting = true);
     try {
       final api = TripRecordsApi();
-      await api.create(
+      final created = await api.create(
         title: title,
         date: _selectedDate!,
-        groupId: gid, // ✅ 유효하면 포함, 아니면 null
+        groupId: gid,
         content: _contentCtrl.text.trim().isEmpty ? null : _contentCtrl.text.trim(),
+        photoUrls: (widget.initialLocalPhotoPaths?.isNotEmpty ?? false)
+            ? widget.initialLocalPhotoPaths
+            : null, // ✅ file:///… 문자열 그대로 전송
       );
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.pop(context, created);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -187,7 +200,10 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
               _loading
                   ? const Center(child: CircularProgressIndicator())
                   : DropdownButtonFormField<dynamic>(
-                value: _selectedGroup,
+                // 🔧 포인트 1: value → initialValue 로 변경 (deprecation 해결)
+                // 🔧 포인트 2: key 를 주어 groups/selected 가 바뀌면 위젯을 재생성 → initialValue 재적용
+                key: ValueKey('grp-${_groups.length}-${_selectedGroup?.id ?? 'none'}'),
+                initialValue: _selectedGroup,
                 isExpanded: true,
                 items: [
                   const DropdownMenuItem(value: null, child: Text('지정 안 함')),

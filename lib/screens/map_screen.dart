@@ -6,15 +6,11 @@ import 'package:kakao_map_plugin/kakao_map_plugin.dart';
 import '../widgets/map_widgets/kakao_map_view.dart';
 import 'package:joljak/widgets/bottom_sheet_widgets/bottom_sheet.dart';
 
-// 사진 EXIF → 마커 유틸 (카메라 이동 함수 없음)
+// 사진 EXIF → 마커 유틸
 import 'package:joljak/utils/photo_markers.dart';
 
 class MapScreen extends StatefulWidget {
-  /// 앱 진입 직후 자동으로 지도에 마커를 찍고 싶다면 로컬 사진 경로들을 넣어주세요.
-  /// 예) ['file:///storage/.../IMG_0001.jpg', '/storage/emulated/0/DCIM/Camera/IMG_0002.jpg']
-  final List<String>? initialLocalPhotoPaths;
-
-  const MapScreen({super.key, this.initialLocalPhotoPaths});
+  const MapScreen({super.key});
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -23,7 +19,6 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   KakaoMapController? _mapController;
   bool _busy = false;
-  bool _initialPlotted = false; // 초기 자동 플롯 1회만 수행
 
   /// 로컬 사진 경로들에서 EXIF 좌표를 읽어 마커 추가
   Future<void> _plotFromLocalPhotoPaths(List<String> localPhotoPaths) async {
@@ -43,19 +38,10 @@ class _MapScreenState extends State<MapScreen> {
 
       final markers = buildMarkersFromPhotoPoints(points); // 마커 만들기
       await addPhotoMarkersToMap(map, markers);            // 지도에 추가
-      // 요구사항: 카메라 이동 없음
+      // 카메라 이동 없음
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  Future<void> _autoPlotInitial() async {
-    if (_initialPlotted) return;
-    final paths = widget.initialLocalPhotoPaths;
-    if (paths == null || paths.isEmpty) return;
-
-    _initialPlotted = true;
-    await _plotFromLocalPhotoPaths(paths);
   }
 
   @override
@@ -68,10 +54,7 @@ class _MapScreenState extends State<MapScreen> {
             Positioned.fill(
               child: KakaoMapView(
                 centerToCurrentOnInit: true, // 지도는 즉시 뜨고, 위치 이동은 백그라운드로
-                onMapCreated: (c) async {
-                  setState(() => _mapController = c);
-                  await _autoPlotInitial(); // ✅ 지도 준비되면 초기 마커 자동 표시
-                },
+                onMapCreated: (c) => setState(() => _mapController = c),
               ),
             ),
 
@@ -92,7 +75,7 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-            // 바텀시트 (원하면 레코드 탭 시 수동 플롯도 병행 가능)
+            // 바텀시트 (레코드 탭 시 수동 플롯도 가능)
             Positioned.fill(
               child: DraggableScrollableSheet(
                 initialChildSize: 0.5,
@@ -108,11 +91,13 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-            // 오른쪽 하단 메뉴
-            const Positioned(
+            // 오른쪽 하단 메뉴 (촬영/업로드 직후 지도에 바로 마커)
+            Positioned(
               bottom: 20,
               right: 20,
-              child: MenuPill(),
+              child: MenuPill(
+                onPhotosReady: (paths) => _plotFromLocalPhotoPaths(paths),
+              ),
             ),
 
             // 진행 인디케이터(옵션)

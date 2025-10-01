@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:joljak/theme/app_colors.dart';
 import '../../api/group_api.dart';
 import '../../api/trip_records_api.dart';
 import '../common_widgets/form_decoration.dart';
@@ -234,7 +235,7 @@ class _RecordCreateDialogState extends State<RecordCreateDialog> {
                   ElevatedButton(
                     onPressed: _submitting ? null : _submit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF8040),
+                      backgroundColor: AppColors.mainColor,
                       minimumSize: const Size(100, 48),
                     ),
                     child: _submitting

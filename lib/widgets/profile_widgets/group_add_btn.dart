@@ -13,39 +13,53 @@ class GroupAddBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Material(
-          color: Colors.transparent, borderRadius: kRadius,
-          child: InkWell(
-            borderRadius: kRadius,
-            onTap: () async {
-              final r = await showDialog<GroupCreateResult>(
-                context: context, barrierDismissible: true,
-                builder: (_) => const GroupCreateBtn(),
-              );
-              if (r != null) {
-                await context.read<GroupProvider>().create(r.name, r.color);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('그룹 "${r.name}" 생성 완료')),
+        // ⬇️ 고정 크기 대신 Expanded + AspectRatio(1)
+        Expanded(
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: kRadius,
+              child: InkWell(
+                borderRadius: kRadius,
+                onTap: () async {
+                  final r = await showDialog<GroupCreateResult>(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (_) => const GroupCreateBtn(),
                   );
-                }
-              }
-            },
-            child: Ink(
-              width: tileSize, height: tileSize,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100, borderRadius: kRadius,
-                border: Border.all(color: Colors.grey.shade300),
+                  if (r != null) {
+                    await context.read<GroupProvider>().create(r.name, r.color);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('그룹 "${r.name}" 생성 완료')),
+                      );
+                    }
+                  }
+                },
+                child: Ink(
+                  // ⬇️ 고정 width/height 제거 (부모 비율/높이 따름)
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: kRadius,
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: const Center(child: Icon(Icons.add, size: 30)), // 32→30(선택)
+                ),
               ),
-              child: const Center(child: Icon(Icons.add, size: 32)),
             ),
           ),
         ),
-        const SizedBox(height: 6),
-        const SizedBox(
+        const SizedBox(height: 4), // 6→4
+        SizedBox(
           width: tileSize + 4,
-          child: Text('새 그룹 추가', textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+          child: const Text(
+            '새 그룹 추가',
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, height: 1.0),
+          ),
         ),
       ],
     );

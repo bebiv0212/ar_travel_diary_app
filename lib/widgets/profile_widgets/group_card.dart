@@ -17,7 +17,6 @@ class GroupCard extends StatelessWidget {
   final String name;
   final Color color;
 
-  static const double tileSize = GroupAddBtn.tileSize;
   static const BorderRadius kRadius = GroupAddBtn.kRadius;
 
   @override
@@ -39,27 +38,30 @@ class GroupCard extends StatelessWidget {
         }
       },
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: tileSize,
-            height: tileSize,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: kRadius,
-              border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+          // ⬇️ 부모가 준 높이 범위 안에서 ‘정사각형’이 되도록
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: kRadius,
+                  border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                ),
+                child: Icon(Icons.place_rounded, color: color, size: 28),
+              ),
             ),
-            child: Icon(Icons.place_rounded, color: color, size: 30),
           ),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: tileSize + 4,
-            child: Text(
-              name,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              style: const TextStyle(fontSize: 11),
-            ),
+          const SizedBox(height: 4), // 6 → 4로 살짝 줄여 여유 확보
+          // ⬇️ 가용 폭 안에서만 렌더, 오버플로우 방지
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 11),
           ),
         ],
       ),

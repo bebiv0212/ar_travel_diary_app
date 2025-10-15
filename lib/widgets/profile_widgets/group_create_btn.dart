@@ -188,12 +188,12 @@ class _GroupCreateBtnState extends State<GroupCreateBtn> {
                                     color: c,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: Colors.black,
+                                      color: Color(0x0F000000), // 0x0F = 6% 불투명
                                       width: 1,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black,
+                                        color: Color(0x0F000000), // 0x0F = 6% 불투명
                                         blurRadius: 4,
                                         offset: const Offset(0, 2),
                                       )

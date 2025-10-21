@@ -1,4 +1,4 @@
-import 'dart:convert';class GroupInfo {
+class GroupInfo {
   final String id;
   final String name;
   final String? color;

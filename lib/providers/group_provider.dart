@@ -27,6 +27,9 @@ class GroupProvider with ChangeNotifier {
   String? get error => _error;
 
   Future<void> load() async {
+    if (_loaded) return;
+    _loaded = true;
+
     _loading = true;
     notifyListeners();
     try {

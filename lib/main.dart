@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:joljak/core/config.dart';
 import 'package:joljak/providers/group_provider.dart';
 import 'package:joljak/widgets/bottom_sheet_widgets/trip_record_provider.dart';
 import 'package:provider/provider.dart';
@@ -12,9 +14,11 @@ import 'screens/ar_camera_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart'; // ✅ 로그인 화면 다시 활성화
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AuthRepository.initialize(appKey: '43fc3e9b764885aff8268399009c6d9c');
+  await dotenv.load(fileName: ".env");
+  initializeConfig();
+  AuthRepository.initialize(appKey: dotenv.env['KAKAO_MAP_API_KEY']!);
   runApp(const MyApp());
 }
 

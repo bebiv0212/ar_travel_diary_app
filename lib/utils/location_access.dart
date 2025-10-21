@@ -5,7 +5,7 @@ enum LocationAccessStatus {
   granted,
   serviceDisabled,
   permissionDenied,
-  permissionPermanentlyDenied,
+  permissionPermanentlyDenied, denied,
 }
 
 class LocationAccess {

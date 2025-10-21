@@ -6,13 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:joljak/core/token_storage.dart';
 import 'package:joljak/widgets/bottom_sheet_widgets/trip_record.dart';
 
-const String kBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-
-  // 에뮬레이터: 10.0.2.2 / 실기기: PC LAN IP (예: 192.168.x.x)
-  // defaultValue: 'http://10.0.2.2:4000', //에뮬레이터
-  defaultValue: 'http://172.16.1.56:4000', //실기기 (config.dart처럼 http://~~:4000 물결 안쪽 수정후 사용)
-);
+import 'package:joljak/core/config.dart';
 
 class TripRecordService {
   final http.Client _client;

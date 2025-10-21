@@ -12,16 +12,27 @@ import 'package:joljak/widgets/profile_widgets/group_card.dart';
 
 import '../widgets/bottom_sheet_widgets/trip_record_provider.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 위젯이 빌드된 후에 호출되도록 예약
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<GroupProvider>().load();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
-
-    // ✅ 첫 빌드 때 한 번만 그룹 목록 로드 (Provider 내부에서 중복 방지)
-    context.read<GroupProvider>().load();
 
     return Scaffold(
       body: SafeArea(

@@ -198,8 +198,8 @@ class DataPage extends StatelessWidget {
                             aspectRatio: 1,
                             child: url.isNotEmpty
                                 ? Image.network(url, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const _PhotoPlaceholder())
-                                : const _PhotoPlaceholder(),
+                                errorBuilder: (_, __, ___) => _PhotoPlaceholder(isFirst: i == 0))
+                                : _PhotoPlaceholder(isFirst: i == 0),
                           ),
                         );
                       },

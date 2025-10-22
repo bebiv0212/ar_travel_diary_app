@@ -54,38 +54,45 @@ class MyBottomSheet extends StatelessWidget {
                 child: CustomScrollView(
                   controller: scrollController,
                   slivers: [
-                    // 드래그 핸들
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 10, bottom: 12),
-                        child: Center(
-                          child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[400],
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // 🔒 고정 헤더: "나의 기록"
+                    // ✅ 핸들 + "나의 기록"을 하나의 고정 헤더로
                     SliverPersistentHeader(
                       pinned: true,
                       delegate: _PinnedHeaderDelegate(
-                        height: 60,
+                        minHeight: 86, // 핸들(26) + 타이틀(60) 높이 합
+                        maxHeight: 86,
                         child: Container(
                           color: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          alignment: Alignment.centerLeft,
-                          child: const Text(
-                            '나의 기록',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // 핸들
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10, bottom: 12),
+                                child: Center(
+                                  child: Container(
+                                    width: 40,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[400],
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // 타이틀
+                              Container(
+                                height: 60,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                alignment: Alignment.centerLeft,
+                                child: const Text(
+                                  '나의 기록',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -137,16 +144,23 @@ class MyBottomSheet extends StatelessWidget {
   }
 }
 
-/// 고정 헤더용 Delegate
+/// 고정 헤더용 Delegate (오버랩 시 바텀 보더 표시)
 class _PinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _PinnedHeaderDelegate({required this.height, required this.child});
-  final double height;
+  _PinnedHeaderDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  final double minHeight;
+  final double maxHeight;
   final Widget child;
 
   @override
-  double get minExtent => height;
+  double get minExtent => minHeight;
+
   @override
-  double get maxExtent => height;
+  double get maxExtent => maxHeight;
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
@@ -166,7 +180,9 @@ class _PinnedHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _PinnedHeaderDelegate oldDelegate) {
-    return oldDelegate.height != height || oldDelegate.child != child;
+    return oldDelegate.minHeight != minHeight ||
+        oldDelegate.maxHeight != maxHeight ||
+        oldDelegate.child != child;
   }
 }
 

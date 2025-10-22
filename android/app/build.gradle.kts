@@ -29,7 +29,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // TODO: Add your own signing config for the release build.
+            // See https://docs.flutter.dev/deployment/android#signing-the-app
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
         }
         debug {
             isDebuggable = true

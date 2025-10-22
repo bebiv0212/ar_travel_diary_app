@@ -74,16 +74,15 @@ class _KakaoMapViewState extends State<KakaoMapView> {
   }
 
   Future<void> _drawLocationOverlay(
-      KakaoMapController c,
-      LatLng center, {
-        double? accuracyMeters,
-      }) async {
+    KakaoMapController c,
+    LatLng center, {
+    double? accuracyMeters,
+  }) async {
     // 기존 원 제거
     try {
-      await c.clearCircle(circleIds: [
-        KakaoMapView.kDotCircleId,
-        KakaoMapView.kAccCircleId,
-      ]);
+      await c.clearCircle(
+        circleIds: [KakaoMapView.kDotCircleId, KakaoMapView.kAccCircleId],
+      );
     } catch (_) {}
 
     // 현재 위치 점
@@ -102,7 +101,9 @@ class _KakaoMapViewState extends State<KakaoMapView> {
     final List<Circle> circles = [dot];
 
     // 정확도 반경
-    if (accuracyMeters != null && accuracyMeters.isFinite && accuracyMeters > 0) {
+    if (accuracyMeters != null &&
+        accuracyMeters.isFinite &&
+        accuracyMeters > 0) {
       final clamped = accuracyMeters.clamp(10, 300.0);
       circles.add(
         Circle(
@@ -184,7 +185,9 @@ class _KakaoMapViewState extends State<KakaoMapView> {
 
       Position pos;
       try {
-        pos = await Geolocator.getCurrentPosition(locationSettings: settings);
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
       } catch (_) {
         // current 실패: lastKnown/폴백만 유지
         return;

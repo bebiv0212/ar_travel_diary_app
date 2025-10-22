@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:kakao_map_plugin/kakao_map_plugin.dart';
 import 'package:geolocator/geolocator.dart';
@@ -23,6 +24,9 @@ class KakaoMapView extends StatefulWidget {
   /// lastKnown 먼저 시도 후, 정확 위치로 재이동할지
   final bool preferLastKnownFirst;
 
+  /// WebView(KakaoMap) 자체를 첫 프레임 뒤에 살짝 지연 마운트해서 초기 jank 완화
+  final int mountDelayMs;
+
   /// 현재 위치 원(circle) ID들 — 다른 곳과 충돌 없게 고정
   static const String kDotCircleId = 'my_loc_dot';
   static const String kAccCircleId = 'my_loc_acc';
@@ -36,6 +40,7 @@ class KakaoMapView extends StatefulWidget {
     this.deferLocationMs = 200,
     this.locationTimeoutMs = 2000,
     this.preferLastKnownFirst = true,
+    this.mountDelayMs = 120, // 🔹 추가: 기본 120ms 뒤에 WebView 마운트
   });
 
   @override
@@ -44,9 +49,41 @@ class KakaoMapView extends StatefulWidget {
 
 class _KakaoMapViewState extends State<KakaoMapView> {
   KakaoMapController? _c;
+  bool _showMap = false;
+  Timer? _mountTimer;
+
+  // 오버레이 연속 갱신 억제용(디바운스)
+  Timer? _overlayDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    // 첫 프레임 이후 살짝 지연해서 KakaoMap(WebView) 마운트
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final delay = Duration(milliseconds: widget.mountDelayMs.clamp(0, 1000));
+      _mountTimer = Timer(delay, () {
+        if (mounted) setState(() => _showMap = true);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _mountTimer?.cancel();
+    _overlayDebounce?.cancel();
+    // kakao_map_plugin은 명시 dispose가 없어서 컨트롤러만 끊어둡니다.
+    _c = null;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!_showMap) {
+      // 초기 jank 줄이기 위해 잠깐 placeholder
+      return const SizedBox.expand(child: ColoredBox(color: Colors.transparent));
+    }
+
     return KakaoMap(
       center: widget.fallbackCenter ?? LatLng(37.5665, 126.9780),
       onMapCreated: (controller) async {
@@ -78,48 +115,52 @@ class _KakaoMapViewState extends State<KakaoMapView> {
       LatLng center, {
         double? accuracyMeters,
       }) async {
-    // 기존 원 제거
-    try {
-      await c.clearCircle(circleIds: [
-        KakaoMapView.kDotCircleId,
-        KakaoMapView.kAccCircleId,
-      ]);
-    } catch (_) {}
+    // 연속 호출 시 16ms 내 중복 작업 방지(디바운스)
+    _overlayDebounce?.cancel();
+    _overlayDebounce = Timer(const Duration(milliseconds: 16), () async {
+      try {
+        await c.clearCircle(
+          circleIds: [KakaoMapView.kDotCircleId, KakaoMapView.kAccCircleId],
+        );
+      } catch (_) {}
 
-    // 현재 위치 점
-    final dot = Circle(
-      circleId: KakaoMapView.kDotCircleId,
-      center: center,
-      radius: 6,
-      strokeColor: Colors.white,
-      strokeOpacity: 1,
-      strokeWidth: 2,
-      fillColor: const Color(0xFF1976D2),
-      fillOpacity: 1,
-      zIndex: 10000,
-    );
-
-    final List<Circle> circles = [dot];
-
-    // 정확도 반경
-    if (accuracyMeters != null && accuracyMeters.isFinite && accuracyMeters > 0) {
-      final clamped = accuracyMeters.clamp(10, 300.0);
-      circles.add(
-        Circle(
-          circleId: KakaoMapView.kAccCircleId,
-          center: center,
-          radius: clamped.toDouble(),
-          strokeColor: const Color(0xFF1976D2),
-          strokeOpacity: 0.3,
-          strokeWidth: 1,
-          fillColor: const Color(0xFF1976D2),
-          fillOpacity: 0.10,
-          zIndex: 9999,
-        ),
+      // 현재 위치 점(6m 반경 원) — 지상 단위(m)
+      final dot = Circle(
+        circleId: KakaoMapView.kDotCircleId,
+        center: center,
+        radius: 6,
+        strokeColor: Colors.white,
+        strokeOpacity: 1,
+        strokeWidth: 2,
+        fillColor: const Color(0xFF1976D2),
+        fillOpacity: 1,
+        zIndex: 10000,
       );
-    }
 
-    await c.addCircle(circles: circles);
+      final List<Circle> circles = [dot];
+
+      // 정확도 반경
+      if (accuracyMeters != null &&
+          accuracyMeters.isFinite &&
+          accuracyMeters > 0) {
+        final clamped = accuracyMeters.clamp(10, 300.0);
+        circles.add(
+          Circle(
+            circleId: KakaoMapView.kAccCircleId,
+            center: center,
+            radius: clamped.toDouble(),
+            strokeColor: const Color(0xFF1976D2),
+            strokeOpacity: 0.3,
+            strokeWidth: 1,
+            fillColor: const Color(0xFF1976D2),
+            fillOpacity: 0.10,
+            zIndex: 9999,
+          ),
+        );
+      }
+
+      await c.addCircle(circles: circles);
+    });
   }
 
   // 지도는 이미 뜬 뒤, 비차단으로 현재 위치 표시/이동
@@ -135,11 +176,11 @@ class _KakaoMapViewState extends State<KakaoMapView> {
         final last = await Geolocator.getLastKnownPosition();
         if (last != null) {
           quickTarget = LatLng(last.latitude, last.longitude);
-          // 오버레이 먼저 찍고
+          // 오버레이 먼저 찍고(비차단)
           // ignore: unawaited_futures
           _drawLocationOverlay(c, quickTarget);
 
-          // 비차단 이동
+          // 지도 비차단 이동
           // ignore: unawaited_futures
           c.setCenter(quickTarget);
           // ignore: unawaited_futures
@@ -153,7 +194,6 @@ class _KakaoMapViewState extends State<KakaoMapView> {
       final service = await Geolocator.isLocationServiceEnabled();
       if (!service) {
         if (quickTarget == null) {
-          // 초기 폴백이라도 찍기
           final fb = widget.fallbackCenter ?? LatLng(37.5665, 126.9780);
           // ignore: unawaited_futures
           _drawLocationOverlay(c, fb);
@@ -163,7 +203,7 @@ class _KakaoMapViewState extends State<KakaoMapView> {
 
       var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
-        // 자동 진행 시 권한 팝업을 원치 않으면 이 줄 주석 처리
+        // 자동 진행 원치 않으면 주석 처리
         perm = await Geolocator.requestPermission();
       }
       if (perm == LocationPermission.denied ||
@@ -176,15 +216,13 @@ class _KakaoMapViewState extends State<KakaoMapView> {
         return;
       }
 
-      // 현재 위치
-      final settings = LocationSettings(
-        accuracy: LocationAccuracy.high,
-        timeLimit: Duration(milliseconds: widget.locationTimeoutMs),
-      );
-
+      // 현재 위치(시간 제한을 실제 호출에 직접 적용)
       Position pos;
       try {
-        pos = await Geolocator.getCurrentPosition(locationSettings: settings);
+        pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: Duration(milliseconds: widget.locationTimeoutMs), // 🔹 핵심
+        );
       } catch (_) {
         // current 실패: lastKnown/폴백만 유지
         return;

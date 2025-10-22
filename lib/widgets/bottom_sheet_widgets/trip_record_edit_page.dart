@@ -1,16 +1,23 @@
 // lib/widgets/bottom_sheet_widgets/trip_record_edit_page.dart
 
+import 'dart:io'; // ✅ File 사용
+
 import 'package:flutter/material.dart';
-import 'package:joljak/widgets/bottom_sheet_widgets/photo_utils.dart';
-import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 import 'trip_record.dart';
 import 'trip_record_provider.dart';
-import 'package:joljak/providers/group_provider.dart'; // UiGroup / GroupProvider
+import 'package:joljak/widgets/bottom_sheet_widgets/photo_utils.dart';
+import 'package:joljak/providers/group_provider.dart';
+
+// ✅ 업로드 및 진행률 다이얼로그
+import '../../api/uploads_api.dart';
+import '../common_widgets/upload_progress_dialog.dart';
 
 class TripRecordEditPage extends StatefulWidget {
   const TripRecordEditPage({super.key, required this.record});
+
   final TripRecord record;
 
   @override
@@ -82,13 +89,13 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('이미지 선택 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('이미지 선택 실패: $e')));
     }
   }
 
-  /// ✅ “가운데 뜨는 창”으로 그룹 선택 (지정 안 함 포함 / 버튼 선택)
+  /// ✅ 가운데 다이얼로그로 그룹 선택 (지정 안 함 포함)
   Future<void> _openGroupDialog() async {
     final gp = context.read<GroupProvider>();
 
@@ -106,7 +113,9 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
       barrierDismissible: true,
       builder: (dialogCtx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('그룹 선택'),
           content: SizedBox(
             width: double.maxFinite,
@@ -114,7 +123,6 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 맨 위 ‘지정 안 함’ 버튼
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
@@ -132,24 +140,28 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                       child: Text('등록된 그룹이 없습니다.'),
                     )
                   else
-                    ...groups.map((g) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(dialogCtx, g.id),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(
-                            g.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                    ...groups.map(
+                      (g) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(dialogCtx, g.id),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              g.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    )),
+                    ),
                 ],
               ),
             ),
@@ -167,67 +179,118 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     if (!mounted || pickedId == null) return;
 
     if (pickedId == kNoneId) {
-      // ✅ ‘지정 안 함’
       setState(() => _group = GroupInfo.empty);
       return;
     }
 
-    final sel = groups.firstWhere((x) => x.id == pickedId, orElse: () => groups.first);
+    final sel = groups.firstWhere(
+      (x) => x.id == pickedId,
+      orElse: () => groups.first,
+    );
     setState(() {
       _group = GroupInfo(id: sel.id, name: sel.name, color: null);
     });
+  }
+
+  /// ✅ 로컬 경로들을 서버에 업로드하고 url 리스트로 변환
+  Future<List<String>> _uploadLocalPhotos(List<String> localPaths) async {
+    if (localPaths.isEmpty) return const [];
+
+    final uploaded = <String>[];
+
+    // 진행률 다이얼로그
+    final progress = ValueNotifier<double>(0);
+    if (mounted) {
+      showUploadProgressDialog(context, progress: progress);
+    }
+
+    try {
+      for (var i = 0; i < localPaths.length; i++) {
+        final p = localPaths[i];
+        final f = File(p.startsWith('file://') ? Uri.parse(p).toFilePath() : p);
+
+        final result = await UploadsApi().uploadPhoto(
+          f,
+          onSendProgress: (sent, total) {
+            if (total > 0) {
+              final fileRatio = sent / total;
+              final overall = (i + fileRatio) / localPaths.length;
+              progress.value = overall;
+            }
+          },
+        );
+
+        if (result.url.isNotEmpty) {
+          uploaded.add(result.url);
+        }
+      }
+    } catch (e) {
+      debugPrint('[TripRecordEditPage] upload error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('일부 사진 업로드 실패: $e')));
+      }
+    } finally {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(); // 진행률 다이얼로그 닫기
+      }
+    }
+
+    return uploaded;
   }
 
   Future<void> _save() async {
     if (_saving) return;
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('제목을 입력해 주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('제목을 입력해 주세요.')));
       return;
     }
 
-    // 서버는 URL 배열을 받으므로, 로컬 경로는 제외하고 전송 (업로드 API 전 임시)
-    final urlsOnly = _photoPathsOrUrls.where(_isHttpUrl).toList();
-    final hasLocal = _photoPathsOrUrls.any((p) => !_isHttpUrl(p));
+    // 원격 URL / 로컬 경로 분리
+    final remoteUrls = _photoPathsOrUrls.where(_isHttpUrl).toList();
+    final localPaths = _photoPathsOrUrls.where((p) => !_isHttpUrl(p)).toList();
 
     setState(() => _saving = true);
     final p = context.read<TripRecordProvider>();
     try {
+      // 1) 로컬 사진 업로드
+      final newUrls = await _uploadLocalPhotos(localPaths);
+
+      // 2) 기존 원격 + 새로 업로드한 url 합치기
+      final allUrls = <String>[...remoteUrls, ...newUrls];
+
       // 그룹 변경 여부 판단
       final changed = _group.id != widget.record.group.id;
 
-      // ⚠️ 서버 규약에 맞추세요:
-      //  - 대부분은 ''(빈 문자열)을 보내면 groupId를 null로 업데이트(해제)합니다.
-      //  - 서버가 null로 해제한다면 아래를 null로 바꾸세요.
+      // 서버 규약: '' → groupId 해제, null → 변경 없음
       final String? sendGroupId = changed
           ? (_group.id.isEmpty ? '' : _group.id)
           : null;
 
+      // 3) 업데이트 요청
       final updated = await p.updateRecord(
         id: widget.record.id,
         title: title,
         content: _contentCtrl.text.trim(),
         date: _date,
-        photoUrls: urlsOnly,
-        groupId: sendGroupId, // ✅ 지정/해제 모두 한 번에 처리
+        groupId: sendGroupId,
+        photoUrls: allUrls,
       );
+
+      // 최신 목록 동기화
       await p.refresh();
 
-      if (mounted) {
-        if (hasLocal) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('로컬에서 고른 사진은 업로드 연결 전이라 저장되지 않았어요.')),
-          );
-        }
-        Navigator.pop(context, updated); // DataPage로 결과 객체 반환
-      }
+      if (!mounted) return;
+      Navigator.pop(context, updated); // DataPage로 결과 객체 반환
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('저장 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -244,18 +307,15 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
         return null;
       }
     });
-    // 이미 있던 이름 로직 옆에 추가
-   final storeGroupColor = context.select<GroupProvider, Color?>((gp) {
+    final storeGroupColor = context.select<GroupProvider, Color?>((gp) {
       try {
-        return gp.groups.firstWhere((x) => x.id == _group.id).color; // UiGroup.color
+        return gp.groups
+            .firstWhere((x) => x.id == _group.id)
+            .color; // UiGroup.color
       } catch (_) {
         return null;
       }
     });
-
-// // 최종 보여줄 색 (Provider 우선 → 모델의 hex → 기본색)
-//     final Color groupColor = _group.color
-
 
     final displayedGroupName = ((storeGroupName ?? _group.name).trim());
     final hasGroup = displayedGroupName.isNotEmpty;
@@ -269,7 +329,10 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
             // 상단 핸들 + 제목/날짜/그룹
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 child: Column(
                   children: [
                     Center(
@@ -295,7 +358,9 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                               hintText: 'Title',
                             ),
                             style: const TextStyle(
-                                fontSize: 28, fontWeight: FontWeight.w800),
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Row(
@@ -309,20 +374,23 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                                     Text(
                                       _ymd(_date),
                                       style: const TextStyle(
-                                          fontSize: 14, color: Colors.black87),
+                                        fontSize: 14,
+                                        color: Colors.black87,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                               const Spacer(),
-
                               // ✅ 그룹 칩 (탭 → 가운데 다이얼로그)
                               InkWell(
                                 onTap: _openGroupDialog,
                                 borderRadius: BorderRadius.circular(999),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 5),
+                                    horizontal: 8,
+                                    vertical: 5,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(999),
@@ -332,7 +400,11 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       if (hasGroup) ...[
-                                        Icon(Icons.place_outlined, size: 16 ,color:  storeGroupColor,),
+                                        Icon(
+                                          Icons.place_outlined,
+                                          size: 16,
+                                          color: storeGroupColor,
+                                        ),
                                         const SizedBox(width: 4),
                                       ],
                                       Text(
@@ -340,7 +412,9 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
-                                          color: hasGroup ? null : Colors.grey[600],
+                                          color: hasGroup
+                                              ? null
+                                              : Colors.grey[600],
                                         ),
                                       ),
                                     ],
@@ -389,7 +463,8 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                             top: 4,
                             child: InkWell(
                               onTap: () => setState(
-                                      () => _photoPathsOrUrls.removeAt(index - 1)),
+                                () => _photoPathsOrUrls.removeAt(index - 1),
+                              ),
                               child: Container(
                                 width: 22,
                                 height: 22,
@@ -397,8 +472,11 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                                   color: Colors.black54,
                                   borderRadius: BorderRadius.circular(11),
                                 ),
-                                child: const Icon(Icons.close,
-                                    color: Colors.white, size: 14),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
                               ),
                             ),
                           ),
@@ -436,12 +514,17 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
             // CANCEL / SAVE
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 18,
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _saving ? null : () => Navigator.pop(context),
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.pop(context),
                         child: const Text('CANCEL'),
                       ),
                     ),
@@ -455,17 +538,17 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                         ),
                         child: _saving
                             ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
                             : const Text(
-                          'SAVE',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
+                                'SAVE',
+                                style: TextStyle(fontWeight: FontWeight.w800),
+                              ),
                       ),
                     ),
                   ],
@@ -483,6 +566,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
 
 class _AddPhotoTile extends StatelessWidget {
   const _AddPhotoTile({required this.onTap});
+
   final VoidCallback onTap;
 
   @override

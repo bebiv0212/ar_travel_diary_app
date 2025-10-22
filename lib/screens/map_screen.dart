@@ -82,6 +82,8 @@ class _MapScreenState extends State<MapScreen> {
                 minChildSize: 0.09,
                 maxChildSize: 0.9,
                 expand: false,
+                snap: true,
+                snapSizes: const [0.12, 0.5, 0.9], // 최소/중간/최대 포인트
                 builder: (context, scrollController) {
                   return MyBottomSheet(
                     scrollController: scrollController,

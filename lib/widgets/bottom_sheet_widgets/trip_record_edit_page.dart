@@ -28,7 +28,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _contentCtrl;
   late DateTime _date;
-  late List<String> _photoPathsOrUrls; // 로컬 파일 path 또는 http(s) URL
+  late List<String> _photoPathsOrUrls; // 로컬 파일 path 또는 서버 URL(/uploads 포함)
   bool _saving = false;
 
   // ⚠️ late 에러 방지용 기본값 후 initState에서 주입
@@ -74,14 +74,19 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     if (picked != null) setState(() => _date = picked);
   }
 
+  /// ✅ 원격(이미 서버에 있는 경로) 판단
+  /// - http/https 절대 URL
+  /// - 서버 상대 경로(/uploads/...)도 원격으로 간주
   bool _isRemotePath(String s) {
     final u = s.trim();
     if (u.startsWith('http://') || u.startsWith('https://')) return true;
-    // 서버 상대 경로도 원격으로 간주 (예: /uploads/2025-10-22/xxx.jpg)
     if (u.startsWith('/uploads/')) return true;
     return false;
   }
 
+  /// ✅ 로컬 파일 경로 판단
+  /// - file://
+  /// - /storage, /sdcard, /data/user 등 단말 저장소 경로
   bool _isLocalFilePath(String s) {
     final u = s.trim().toLowerCase();
     if (u.startsWith('file://')) return true;
@@ -90,7 +95,6 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     }
     return false;
   }
-
 
   /// 갤러리에서 여러 장 선택 (Android는 추가 설정 없이 동작)
   Future<void> _pickPhotosFromGallery() async {
@@ -154,7 +158,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                     )
                   else
                     ...groups.map(
-                      (g) => Padding(
+                          (g) => Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: SizedBox(
                           width: double.infinity,
@@ -197,7 +201,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     }
 
     final sel = groups.firstWhere(
-      (x) => x.id == pickedId,
+          (x) => x.id == pickedId,
       orElse: () => groups.first,
     );
     setState(() {
@@ -206,6 +210,8 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
   }
 
   /// ✅ 로컬 경로들을 서버에 업로드하고 url 리스트로 변환
+  /// - 업로드 실패는 스낵바 대신 로그만 남김 (요청 반영)
+  /// - 존재하지 않는 파일은 건너뛰고 진행률만 갱신
   Future<List<String>> _uploadLocalPhotos(List<String> localPaths) async {
     if (localPaths.isEmpty) return const [];
 
@@ -251,7 +257,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
         }
       }
     } catch (e) {
-      // 스낵바 대신 로그만 남김
+      // 🔻 스낵바 대신 로그만 남김
       debugPrint('[TripRecordEditPage] upload error: $e');
     } finally {
       if (mounted && Navigator.of(context).canPop()) {
@@ -261,7 +267,6 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
 
     return uploaded;
   }
-
 
   Future<void> _save() async {
     if (_saving) return;
@@ -274,43 +279,42 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
       return;
     }
 
-
-    // 서버엔 http(s)만 보냄. 로컬 경로는 UI에서만 유지.
-    final remoteUrls = _photoPathsOrUrls.where(_isHttpUrl).toList();
-    final localPaths  = _photoPathsOrUrls.where((p) => !_isHttpUrl(p)).toList();
+    // ✅ 분류 함수 사용: 원격(서버에 이미 있는 경로) / 로컬(단말 경로)
+    final remotePaths = _photoPathsOrUrls.where(_isRemotePath).toList();
+    final localPaths  = _photoPathsOrUrls.where(_isLocalFilePath).toList();
 
     setState(() => _saving = true);
     final provider = context.read<TripRecordProvider>();
 
-
     try {
-      // 그룹 변경 여부 판단
+      // 1) 로컬 파일만 업로드
+      final newUrls = await _uploadLocalPhotos(localPaths);
+
+      // 2) 기존 원격(절대/상대 모두) + 새 업로드 URL 합치기
+      final allUrls = <String>[
+        ...remotePaths,
+        ...newUrls,
+      ];
+
+      // 3) 그룹 변경 여부 판단 (''=해제, null=변경 없음)
       final changed = _group.id != widget.record.group.id;
-      // 서버 규약: '' → 해제, null → 변경 없음
       final String? sendGroupId = changed ? (_group.id.isEmpty ? '' : _group.id) : null;
 
-      // 1) 서버에는 원격 URL만 저장
+      // 4) 서버 저장
       final updated = await provider.updateRecord(
         id: widget.record.id,
         title: title,
         content: _contentCtrl.text.trim(),
         date: _date,
         groupId: sendGroupId,
-        photoUrls: remoteUrls, // 로컬 경로는 안 보냄
+        photoUrls: allUrls,
       );
+
+      // 5) 최신 목록 동기화
+      await provider.refresh();
 
       if (!mounted) return;
-
-      // 2) UI용으로는 로컬 경로까지 합쳐서 되돌려주기 (copyWith 사용)
-      final merged = updated.copyWith(
-        photoUrls: [
-          ...updated.photoUrls, // 서버가 가진 원격 URL들
-          ...localPaths,        // 로컬 경로(임시 표시)
-        ],
-      );
-
-      // 3) 지금 당장 refresh() 호출하지 않음 → 로컬 썸네일 유지
-      Navigator.pop(context, merged);
+      Navigator.pop(context, updated);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -334,9 +338,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     });
     final storeGroupColor = context.select<GroupProvider, Color?>((gp) {
       try {
-        return gp.groups
-            .firstWhere((x) => x.id == _group.id)
-            .color; // UiGroup.color
+        return gp.groups.firstWhere((x) => x.id == _group.id).color; // UiGroup.color
       } catch (_) {
         return null;
       }
@@ -437,9 +439,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
-                                          color: hasGroup
-                                              ? null
-                                              : Colors.grey[600],
+                                          color: hasGroup ? null : Colors.grey[600],
                                         ),
                                       ),
                                     ],
@@ -488,7 +488,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                             top: 4,
                             child: InkWell(
                               onTap: () => setState(
-                                () => _photoPathsOrUrls.removeAt(index - 1),
+                                    () => _photoPathsOrUrls.removeAt(index - 1),
                               ),
                               child: Container(
                                 width: 22,
@@ -547,9 +547,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _saving
-                            ? null
-                            : () => Navigator.pop(context),
+                        onPressed: _saving ? null : () => Navigator.pop(context),
                         child: const Text('CANCEL'),
                       ),
                     ),
@@ -563,17 +561,17 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                         ),
                         child: _saving
                             ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                             : const Text(
-                                'SAVE',
-                                style: TextStyle(fontWeight: FontWeight.w800),
-                              ),
+                          'SAVE',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
                       ),
                     ),
                   ],

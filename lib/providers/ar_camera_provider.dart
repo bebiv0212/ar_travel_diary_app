@@ -1,20 +1,4 @@
 // lib/providers/ar_camera_provider.dart
-//
-// AR 카메라용 Provider:
-// - 카메라 라이프사이클 관리
-// - 전/후면 전환
-// - 플래시 토글(지원 여부는 토글 시도 기반 lazy 판별)
-// - 나침반(heading) / 가속도(pitch)
-// - 위치 스트림(선택)
-//
-// 필요 패키지(pubspec):
-// camera, flutter_compass(>=0.8.1 권장), sensors_plus, geolocator
-//
-// iOS 권한(Info.plist) 권장:
-// - NSCameraUsageDescription
-// - NSLocationWhenInUseUsageDescription
-// - NSMotionUsageDescription
-
 import 'dart:async';
 import 'dart:math';
 
@@ -31,16 +15,11 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
   List<CameraDescription> _cameras = const [];
   bool _isRear = true;
 
-  // 플래시: camera 플러그인에 "hasFlash" API가 없어 lazy 판별 적용
-  bool _hasFlash = true; // 처음엔 보이게, 실패 시 false로
+  // 플래시 lazy 판별
+  bool _hasFlash = true;
   bool _torchOn = false;
 
-  // --- Sensors / Location ---lib/screens/ar_camera_screen.dart:55:15: Error: No named parameter with the name 'onModelLoaded'.
-  //               onModelLoaded: (_) => debugPrint('Model loaded'),
-  //               ^^^^^^^^^^^^^
-  // ../../AppData/Local/Pub/Cache/hosted/pub.dev/model_viewer_plus-1.9.3/lib/src/model_viewer_plus.dart:35:9: Context: Found this candidate, but the arguments don't match.
-  //   const ModelViewer({
-  //         ^^^^^^^^^^^
+  // --- Sensors / Location ---
   StreamSubscription<AccelerometerEvent>? _accelSub;
   StreamSubscription<CompassEvent>? _compassSub;
   StreamSubscription<Position>? _posSub;
@@ -51,6 +30,9 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   // --- Error state ---
   String? _error;
+
+  // --- Dispose guard ---
+  bool _disposed = false; // ✅ 추가
 
   // --- Getters ---
   CameraController? get controller => _controller;
@@ -65,25 +47,37 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   // --- Public lifecycle ---
   Future<void> initialize() async {
+    if (_disposed) return; // ✅ 가드
     WidgetsBinding.instance.addObserver(this);
-    await _ensureLocationPermission(); // 위치는 선택(없어도 동작)
+    await _ensureLocationPermission();
     await _initLocation();
+    if (_disposed) return;
     await _initCompass();
+    if (_disposed) return;
     _initAccelerometer();
+    if (_disposed) return;
     await _initCamera();
+    if (_disposed) return;
     notifyListeners();
   }
 
   Future<void> disposeAsync() async {
-    try { await _controller?.dispose(); } catch (_) {}
+    // ✅ 먼저 플래그 세팅해서 콜백이 와도 무시되게
+    _disposed = true;
+
     try { await _accelSub?.cancel(); } catch (_) {}
     try { await _compassSub?.cancel(); } catch (_) {}
     try { await _posSub?.cancel(); } catch (_) {}
+    try { await _controller?.dispose(); } catch (_) {}
+
     WidgetsBinding.instance.removeObserver(this);
   }
 
   @override
   void dispose() {
+    // 비동기 정리 시작(플래그는 위에서 true 처리됨)
+    // await를 못 하니 fire-and-forget
+    // ignore: discarded_futures
     disposeAsync();
     super.dispose();
   }
@@ -91,6 +85,7 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
   // --- App lifecycle hook ---
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_disposed) return;
     if (_controller == null) return;
     if (state == AppLifecycleState.inactive) {
       _disposeCameraOnly();
@@ -106,7 +101,7 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
       if (!enabled) return;
       var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
+        await Geolocator.requestPermission();
       }
     } catch (_) {}
   }
@@ -115,14 +110,19 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _initLocation() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) return;
+      if (_disposed) return;
       _position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
+      if (_disposed) return;
       _posSub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.best),
       ).listen((p) {
+        if (_disposed) return;            // ✅ 가드
         _position = p;
         notifyListeners();
+      }, onError: (_) {
+        // 무시
       });
     } catch (_) {}
   }
@@ -131,6 +131,7 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
     final stream = FlutterCompass.events;
     if (stream == null) return;
     _compassSub = stream.listen((event) {
+      if (_disposed) return;              // ✅ 가드
       final raw = event.heading;
       if (raw == null) return;
       _heading = (raw + 360) % 360;
@@ -140,6 +141,7 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   void _initAccelerometer() {
     _accelSub = accelerometerEventStream().listen((e) {
+      if (_disposed) return;              // ✅ 가드 (크리티컬)
       final ax = e.x.toDouble();
       final ay = e.y.toDouble();
       final az = e.z.toDouble();
@@ -152,8 +154,10 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
   // --- Camera ---
   Future<void> _initCamera() async {
     try {
+      if (_disposed) return;
       _error = null;
       _cameras = await availableCameras();
+      if (_disposed) return;
       final cam = _selectCamera();
       final ctrl = CameraController(
         cam,
@@ -162,12 +166,17 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
       await ctrl.initialize();
+      if (_disposed) {
+        // 이미 dispose 되었으면 즉시 정리
+        try { await ctrl.dispose(); } catch (_) {}
+        return;
+      }
 
-      // 플래시는 lazy 판별(토글 시도 시 실패 → false)
       _torchOn = false;
       _controller = ctrl;
       notifyListeners();
     } catch (e) {
+      if (_disposed) return;
       _error = '카메라 초기화 실패: $e';
       notifyListeners();
     }
@@ -190,37 +199,38 @@ class ArCameraProvider extends ChangeNotifier with WidgetsBindingObserver {
   // --- Actions ---
   Future<void> toggleTorch() async {
     final ctrl = _controller;
-    if (ctrl == null) return;
+    if (ctrl == null || _disposed) return;
 
     try {
       _torchOn = !_torchOn;
       await ctrl.setFlashMode(_torchOn ? FlashMode.torch : FlashMode.off);
-      _hasFlash = true; // 성공 → 지원됨
+      _hasFlash = true;
     } catch (e) {
-      // 실패 → 미지원/거부로 간주
       _torchOn = false;
       _hasFlash = false;
       _error = '이 기기는 플래시를 지원하지 않거나 사용할 수 없습니다.';
     }
+    if (_disposed) return;
     notifyListeners();
   }
 
   Future<void> switchCamera() async {
+    if (_disposed) return;
     _isRear = !_isRear;
-    try {
-      await _controller?.setFlashMode(FlashMode.off);
-    } catch (_) {}
+    try { await _controller?.setFlashMode(FlashMode.off); } catch (_) {}
     _torchOn = false;
     await _disposeCameraOnly();
+    if (_disposed) return;
     await _initCamera();
   }
 
   Future<XFile?> capture() async {
-    if (!isReady) return null;
+    if (!isReady || _disposed) return null;
     try {
       final file = await _controller!.takePicture();
       return file;
     } catch (e) {
+      if (_disposed) return null;
       _error = '촬영 실패: $e';
       notifyListeners();
       return null;

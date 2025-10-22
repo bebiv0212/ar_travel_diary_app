@@ -30,7 +30,10 @@ class CurrentLocationBtn extends StatelessWidget {
         accuracy: LocationAccuracy.high,
         timeLimit: Duration(seconds: 5),
       );
-      return await Geolocator.getCurrentPosition(locationSettings: settings);
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
     } catch (_) {
       return await Geolocator.getLastKnownPosition();
     }

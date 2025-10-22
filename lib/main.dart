@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:joljak/providers/group_provider.dart';
+import 'package:joljak/screens/ar_camera_page.dart';
 import 'package:joljak/widgets/bottom_sheet_widgets/trip_record_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:kakao_map_plugin/kakao_map_plugin.dart';
-
 import 'providers/auth_provider.dart';
 import 'providers/navigation_provider.dart';
-
 import 'screens/map_screen.dart';
-import 'screens/ar_camera_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart'; // ✅ 로그인 화면 다시 활성화
 
@@ -78,7 +76,7 @@ class _HomeScaffold extends StatelessWidget {
 
   static final List<Widget> _pages = [
     const MapScreen(),
-    const ArCameraScreen(),
+    const ArCameraPage(),
     const ProfileScreen(),
   ];
 

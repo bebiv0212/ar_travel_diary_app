@@ -41,6 +41,8 @@ class TripRecordProvider extends ChangeNotifier {
         if (refreshNow) refresh();
       }
 
+
+
   Future<void> refresh() async {
     _page = 1;
     _items.clear();

@@ -1,5 +1,6 @@
 // lib/widgets/bottom_sheet_widgets/data_page.dart
 import 'package:flutter/material.dart';
+import 'package:joljak/widgets/bottom_sheet_widgets/photo_utils.dart';
 import 'package:provider/provider.dart';
 
 import 'trip_record.dart';
@@ -196,10 +197,7 @@ class DataPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           child: AspectRatio(
                             aspectRatio: 1,
-                            child: url.isNotEmpty
-                                ? Image.network(url, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const _PhotoPlaceholder())
-                                : const _PhotoPlaceholder(),
+                            child: buildPhotoThumb(url),
                           ),
                         );
                       },

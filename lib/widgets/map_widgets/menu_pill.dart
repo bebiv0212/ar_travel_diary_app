@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:joljak/widgets/bottom_sheet_widgets/trip_record_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:joljak/widgets/map_widgets/recode_create_dialog.dart';
 import 'package:joljak/utils/camera_util.dart';
+import 'package:provider/provider.dart';
 import '../../api/uploads_api.dart';
 import '../../utils/image_compress.dart';
 import '../../utils/photo_exif.dart';
@@ -247,6 +249,10 @@ class MenuPill extends StatelessWidget {
                   final attach = await _askAttachPhoto(context);
                   if (attach && context.mounted) {
                     await _captureCompressUploadFlow(context, recordId: created.id);
+                  }
+
+                  if(context.mounted){
+                    await context.read<TripRecordProvider>().refresh();
                   }
                 }
               },

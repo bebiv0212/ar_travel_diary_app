@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:joljak/widgets/bottom_sheet_widgets/photo_utils.dart';
 import 'package:provider/provider.dart';
 import '../../providers/group_provider.dart';
 import 'trip_record.dart';
 
 class BottomSheetRecord extends StatelessWidget {
-  const BottomSheetRecord({
-    super.key,
-    required this.record,
-  });
+  const BottomSheetRecord({super.key, required this.record});
 
   final TripRecord record;
 
@@ -39,7 +37,11 @@ class BottomSheetRecord extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 6, spreadRadius: 1),
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 6,
+                    spreadRadius: 1,
+                  ),
                 ],
               ),
               child: ClipRRect(
@@ -52,29 +54,28 @@ class BottomSheetRecord extends StatelessWidget {
                       width: double.infinity,
                       child: PageView.builder(
                         itemCount: r.photoUrls.length,
-                        itemBuilder: (_, i) => Image.network(
-                          r.photoUrls[i],
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey[300],
-                            alignment: Alignment.center,
-                            child: const Icon(Icons.broken_image),
-                          ),
-                        ),
+                        itemBuilder: (_, i) =>
+                            buildPhotoThumb(r.photoUrls[i], fit: BoxFit.cover),
                       ),
                     ),
                     // 간단한 개수 뱃지 (인디케이터 대신)
                     if (r.photoUrls.length > 1)
                       Container(
                         margin: const EdgeInsets.all(10),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           '${r.photoUrls.length}',
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                   ],
@@ -95,7 +96,10 @@ class BottomSheetRecord extends StatelessWidget {
                   children: [
                     Text(
                       r.title.isEmpty ? "Title" : r.title,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -123,7 +127,10 @@ class BottomSheetRecord extends StatelessWidget {
                   ],
                   Text(
                     r.group.name,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),

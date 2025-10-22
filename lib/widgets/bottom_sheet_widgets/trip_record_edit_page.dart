@@ -74,10 +74,23 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     if (picked != null) setState(() => _date = picked);
   }
 
-  bool _isHttpUrl(String s) {
-    final u = s.toLowerCase();
-    return u.startsWith('http://') || u.startsWith('https://');
+  bool _isRemotePath(String s) {
+    final u = s.trim();
+    if (u.startsWith('http://') || u.startsWith('https://')) return true;
+    // 서버 상대 경로도 원격으로 간주 (예: /uploads/2025-10-22/xxx.jpg)
+    if (u.startsWith('/uploads/')) return true;
+    return false;
   }
+
+  bool _isLocalFilePath(String s) {
+    final u = s.trim().toLowerCase();
+    if (u.startsWith('file://')) return true;
+    if (u.startsWith('/storage/') || u.startsWith('/sdcard') || u.startsWith('/data/user/')) {
+      return true;
+    }
+    return false;
+  }
+
 
   /// 갤러리에서 여러 장 선택 (Android는 추가 설정 없이 동작)
   Future<void> _pickPhotosFromGallery() async {
@@ -206,8 +219,19 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
 
     try {
       for (var i = 0; i < localPaths.length; i++) {
-        final p = localPaths[i];
-        final f = File(p.startsWith('file://') ? Uri.parse(p).toFilePath() : p);
+        final raw = localPaths[i].trim();
+        // file:// → 실제 파일 경로로 정규화
+        final filePath = raw.startsWith('file://') ? Uri.parse(raw).toFilePath() : raw;
+
+        final f = File(filePath);
+
+        // 파일 존재 확인(없으면 건너뜀)
+        if (!await f.exists()) {
+          debugPrint('[TripRecordEditPage] skip upload: file not found -> $filePath');
+          // 진행률은 다음 아이템으로 진행
+          progress.value = (i + 1) / localPaths.length;
+          continue;
+        }
 
         final result = await UploadsApi().uploadPhoto(
           f,
@@ -222,15 +246,13 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
 
         if (result.url.isNotEmpty) {
           uploaded.add(result.url);
+        } else {
+          debugPrint('[TripRecordEditPage] upload returned empty url for $filePath');
         }
       }
     } catch (e) {
+      // 스낵바 대신 로그만 남김
       debugPrint('[TripRecordEditPage] upload error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('일부 사진 업로드 실패: $e')));
-      }
     } finally {
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop(); // 진행률 다이얼로그 닫기
@@ -239,6 +261,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
 
     return uploaded;
   }
+
 
   Future<void> _save() async {
     if (_saving) return;
@@ -251,8 +274,9 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
     }
 
     // 원격 URL / 로컬 경로 분리
-    final remoteUrls = _photoPathsOrUrls.where(_isHttpUrl).toList();
-    final localPaths = _photoPathsOrUrls.where((p) => !_isHttpUrl(p)).toList();
+    final remotePaths = _photoPathsOrUrls.where(_isRemotePath).toList();
+    final localPaths  = _photoPathsOrUrls.where(_isLocalFilePath).toList();
+
 
     setState(() => _saving = true);
     final p = context.read<TripRecordProvider>();
@@ -261,7 +285,7 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
       final newUrls = await _uploadLocalPhotos(localPaths);
 
       // 2) 기존 원격 + 새로 업로드한 url 합치기
-      final allUrls = <String>[...remoteUrls, ...newUrls];
+      final allUrls = <String>[...remotePaths, ...newUrls];
 
       // 그룹 변경 여부 판단
       final changed = _group.id != widget.record.group.id;

@@ -23,8 +23,8 @@ class TripRecordProvider extends ChangeNotifier {
   int _limit = 20;
   int _total = 0;
   String? _groupId;
-  String? _month;
-  String? _query;// 'YYYY-MM'
+  String? _month; // 'YYYY-MM'
+  String? _query;
 
   bool get hasMore => _items.length < _total;
   String? get query => _query;
@@ -34,12 +34,13 @@ class TripRecordProvider extends ChangeNotifier {
     _month = month;
     refresh();
   }
+
   void setQuery(String? q, {bool refreshNow = true}) {
-         final nq = (q?.trim().isEmpty ?? true) ? null : q!.trim();
-        if (_query == nq) return;
-        _query = nq;
-        if (refreshNow) refresh();
-      }
+    final nq = (q?.trim().isEmpty ?? true) ? null : q!.trim();
+    if (_query == nq) return;
+    _query = nq;
+    if (refreshNow) refresh();
+  }
 
 
 
@@ -83,14 +84,14 @@ class TripRecordProvider extends ChangeNotifier {
       if (kDebugMode) {
         print('TripRecord load error: $e');
       }
-      _error = e.toString(); // ❗️무한 로딩 방지: 에러 보관하고 진행
+      _error = e.toString(); // 무한 로딩 방지: 에러 보관
     } finally {
       _loading = false;
       notifyListeners();
     }
   }
 
-  /// 목록에서 삭제(필요 시 유지)
+  /// 목록에서 삭제
   Future<void> deleteById(String id) async {
     await _service.deleteRecord(id: id);
     _items.removeWhere((r) => r.id == id);
@@ -116,8 +117,11 @@ class TripRecordProvider extends ChangeNotifier {
 
     final createdMonth =
         '${created.date.year.toString().padLeft(4, '0')}-${created.date.month.toString().padLeft(2, '0')}';
+
+    // ✅ 버그 수정: _groupId는 group **id**이므로 created.group.id와 비교해야 함
     final matchGroup =
-        (_groupId == null || _groupId!.isEmpty) || (_groupId == created.group.name);
+        (_groupId == null || _groupId!.isEmpty) || (_groupId == created.group.id);
+
     final matchMonth =
         (_month == null || _month!.isEmpty) || (_month == createdMonth);
 
@@ -131,7 +135,7 @@ class TripRecordProvider extends ChangeNotifier {
     return created;
   }
 
-  /// ✅ 기록 수정 후 목록에 반영 (없으면 새로고침)
+  /// 기록 수정 후 목록에 반영 (없으면 새로고침)
   Future<TripRecord> updateRecord({
     required String id,
     String? title,
@@ -157,5 +161,17 @@ class TripRecordProvider extends ChangeNotifier {
       await refresh(); // 목록에 없으면 전체 갱신
     }
     return updated;
+  }
+
+  // ✅ 추가: 서버 호출 없이 로컬 항목만 교체/추가 (편집 저장 직후 썸네일 유지용)
+  void upsertLocal(TripRecord rec) {
+    final i = _items.indexWhere((e) => e.id == rec.id);
+    if (i >= 0) {
+      _items[i] = rec;        // 교체
+    } else {
+      _items.insert(0, rec);  // 없으면 앞에 추가
+      _total += 1;
+    }
+    notifyListeners();
   }
 }

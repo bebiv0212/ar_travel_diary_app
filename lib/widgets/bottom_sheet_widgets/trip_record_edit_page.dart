@@ -242,55 +242,55 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
 
   Future<void> _save() async {
     if (_saving) return;
+
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('제목을 입력해 주세요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('제목을 입력해 주세요.')),
+      );
       return;
     }
 
-    // 원격 URL / 로컬 경로 분리
+    // 서버엔 http(s)만 보냄. 로컬 경로는 UI에서만 유지.
     final remoteUrls = _photoPathsOrUrls.where(_isHttpUrl).toList();
-    final localPaths = _photoPathsOrUrls.where((p) => !_isHttpUrl(p)).toList();
+    final localPaths  = _photoPathsOrUrls.where((p) => !_isHttpUrl(p)).toList();
 
     setState(() => _saving = true);
-    final p = context.read<TripRecordProvider>();
+    final provider = context.read<TripRecordProvider>();
+
     try {
-      // 1) 로컬 사진 업로드
-      final newUrls = await _uploadLocalPhotos(localPaths);
-
-      // 2) 기존 원격 + 새로 업로드한 url 합치기
-      final allUrls = <String>[...remoteUrls, ...newUrls];
-
       // 그룹 변경 여부 판단
       final changed = _group.id != widget.record.group.id;
+      // 서버 규약: '' → 해제, null → 변경 없음
+      final String? sendGroupId = changed ? (_group.id.isEmpty ? '' : _group.id) : null;
 
-      // 서버 규약: '' → groupId 해제, null → 변경 없음
-      final String? sendGroupId = changed
-          ? (_group.id.isEmpty ? '' : _group.id)
-          : null;
-
-      // 3) 업데이트 요청
-      final updated = await p.updateRecord(
+      // 1) 서버에는 원격 URL만 저장
+      final updated = await provider.updateRecord(
         id: widget.record.id,
         title: title,
         content: _contentCtrl.text.trim(),
         date: _date,
         groupId: sendGroupId,
-        photoUrls: allUrls,
+        photoUrls: remoteUrls, // 로컬 경로는 안 보냄
       );
 
-      // 최신 목록 동기화
-      await p.refresh();
-
       if (!mounted) return;
-      Navigator.pop(context, updated); // DataPage로 결과 객체 반환
+
+      // 2) UI용으로는 로컬 경로까지 합쳐서 되돌려주기 (copyWith 사용)
+      final merged = updated.copyWith(
+        photoUrls: [
+          ...updated.photoUrls, // 서버가 가진 원격 URL들
+          ...localPaths,        // 로컬 경로(임시 표시)
+        ],
+      );
+
+      // 3) 지금 당장 refresh() 호출하지 않음 → 로컬 썸네일 유지
+      Navigator.pop(context, merged);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('저장 실패: $e')),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }

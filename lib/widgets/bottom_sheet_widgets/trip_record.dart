@@ -91,4 +91,28 @@ class TripRecord {
   // 👉 편의 게터: UI에서 그냥 record.groupName 써도 됨
   String get groupName => group.name;
   String? get groupColor => group.color;
+
+TripRecord copyWith({
+  String? id,
+  String? userId,
+  GroupInfo? group,
+  String? title,
+  String? content,
+  DateTime? date,
+  List<String>? photoUrls,
+  DateTime? createdAt,
+  DateTime? updatedAt,
+}) {
+  return TripRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    group: group ?? this.group,
+    title: title ?? this.title,
+    content: content ?? this.content,
+    date: date ?? this.date,
+    photoUrls: photoUrls ?? this.photoUrls,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+}
 }

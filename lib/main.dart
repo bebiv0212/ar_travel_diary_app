@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           scaffoldBackgroundColor: const Color(0xFFF9F9F9),
           colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.white,              // 메인 톤 기준 색
+            seedColor: Colors.white, // 메인 톤 기준 색
           ),
         ),
         home: kEnableAuthGate ? const _AuthGate() : const _HomeScaffold(),

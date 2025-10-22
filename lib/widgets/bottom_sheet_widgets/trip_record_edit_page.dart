@@ -1,7 +1,7 @@
 // lib/widgets/bottom_sheet_widgets/trip_record_edit_page.dart
-import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:joljak/widgets/bottom_sheet_widgets/photo_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -375,28 +375,13 @@ class _TripRecordEditPageState extends State<TripRecordEditPage> {
                         return _AddPhotoTile(onTap: _pickPhotosFromGallery);
                       }
                       final path = _photoPathsOrUrls[index - 1].trim();
-                      final isHttp = _isHttpUrl(path);
                       return Stack(
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: AspectRatio(
                               aspectRatio: 1,
-                              child: path.isEmpty
-                                  ? const _PhotoPlaceholder()
-                                  : (isHttp
-                                  ? Image.network(
-                                path,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                const _PhotoPlaceholder(),
-                              )
-                                  : Image.file(
-                                File(path),
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                const _PhotoPlaceholder(),
-                              )),
+                              child: buildPhotoThumb(path),
                             ),
                           ),
                           Positioned(
